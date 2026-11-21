@@ -92,18 +92,38 @@ function sendPasteKeystroke() {
   });
 }
 
+function readClipboardText() {
+  try {
+    const value = clipboard.readText();
+    return typeof value === 'string' ? value : null;
+  } catch (error) {
+    console.error('Could not read the clipboard:', error.message);
+    return null;
+  }
+}
+
+function restoreClipboardText(value) {
+  if (typeof value !== 'string') return;
+  try {
+    clipboard.writeText(value);
+  } catch (error) {
+    console.error('Could not restore the clipboard:', error.message);
+  }
+}
+
 ipcMain.handle('ishara:type-text', async (event, text) => {
   if (!isAppUrl(event.senderFrame?.url ?? '')) return { ok: false, error: 'origin' };
   if (typeof text !== 'string' || !text.trim() || text.length > MAX_TEXT) return { ok: false, error: 'invalid' };
-  const previous = clipboard.readText();
-  clipboard.writeText(text);
+  const previous = readClipboardText();
   try {
+    clipboard.writeText(String(text));
     await sendPasteKeystroke();
-    setTimeout(() => clipboard.writeText(previous), CLIPBOARD_RESTORE_MS);
+    setTimeout(() => restoreClipboardText(previous), CLIPBOARD_RESTORE_MS);
+    console.log(`Typed ${text.length} characters into the focused app`);
     return { ok: true };
   } catch (error) {
     console.error('Could not paste into the focused app:', error.message);
-    clipboard.writeText(previous);
+    restoreClipboardText(previous);
     return { ok: false, error: 'paste' };
   }
 });
