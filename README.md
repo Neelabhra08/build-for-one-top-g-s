@@ -1,113 +1,137 @@
-# Ishara: sign it, it speaks
+# Ishara
 
-**Ishara** (ইশারা, इशारा: "a gesture" in Bengali and Hindi) turns **one person's own hand signs** into **speech or text, in the listener's language**.
+**Sign it. It speaks.** Ishara (ইশারা, इशारा: "a gesture" in Bengali and Hindi) turns one person's own hand signs into speech or text, in the listener's language. Hand tracking and sign matching run entirely on the device.
 
-Built in one day for the **"Built for One"** statement at Vibe Coders Hackathon Edition 3, Kolkata, 21 November 2026, by team **Top G's**.
+**Live app:** https://neelabhra08.github.io/build-for-one-top-g-s/ (phone or laptop, no sign-in: tap **Start Ishara** and allow the camera)
 
-| | |
+## Contents
+
+1. [Problem](#problem)
+2. [Features](#features)
+3. [Architecture](#architecture)
+4. [How recognition works](#how-recognition-works)
+5. [ASL starter pack](#asl-starter-pack)
+6. [API](#api)
+7. [Data formats and storage](#data-formats-and-storage)
+8. [Getting started](#getting-started)
+9. [Configuration](#configuration)
+10. [Deployment](#deployment)
+11. [Security and privacy](#security-and-privacy)
+12. [Testing](#testing)
+13. [Project structure](#project-structure)
+14. [Limitations and roadmap](#limitations-and-roadmap)
+15. [Credits](#credits)
+
+## Problem
+
+Ishara is built for one person who cannot speak. Every day they need to say small, urgent things: *I need water*, *I need the washroom*, *I am in pain*, *please call my son*. The people around them speak different languages: family in Bengali, the attendant in Hindi, the doctor in English.
+
+Existing options fail this person:
+
+| Option | Limitation |
 |---|---|
-| **Live app** | https://neelabhra08.github.io/build-for-one-top-g-s/ (phone or laptop, no sign-in: tap **Start Ishara**, allow the camera) |
-| **Desktop widget** | Windows, runs from this repo (`npm run desktop`) |
-| **Tests** | 18 unit tests, run on every deploy |
+| Picture boards (AAC apps) | Unlock, open, search for the picture: slow when in pain, hard with an unsteady hand |
+| Sign language recognition models | Fixed vocabulary of one formal sign language, English output, accuracy drops sharply on a new signer, and no support for home signs |
+| Human interpreters | Not available around the clock |
 
----
+There are more than 300 sign languages, regional variants of Indian Sign Language, and countless home signs that only one family understands. Ishara therefore learns the signs of the person who uses it, instead of expecting the person to learn a standard.
 
-## 1. The problem
+## Features
 
-The statement: *pick one person in your own life who is not a tech person, name them, say what they struggle with every week, and build something that one person can use without you standing next to them.*
-
-**Our person** cannot speak. Every day they need to say small, urgent things: *I need water*, *I need the washroom*, *I am in pain*, *please call my son*. The people around them speak different languages: the family speaks Bengali, the attendant speaks Hindi, the doctor speaks English. When nobody understands the gesture, the need waits.
-
-**Why existing tools fail this one person**
-
-| Option | Why it fails |
+| Feature | Details |
 |---|---|
-| Picture boards you tap (AAC apps) | Unlock the phone, open the app, find the picture: slow in pain, hard with a shaky hand |
-| Sign language recognition models | Know a fixed word list of a formal sign language, output English, and lose accuracy sharply on a new signer. They know nothing about **home signs**, the private gestures only one family understands |
-| A human interpreter | Not there at 2 am |
-| Family guessing | Works only while someone patient is in the room |
+| Home signs from the first minute | 7 starter gestures: thumb up (yes), thumb down (no), closed fist (pain), point up (water), two fingers (washroom), open palm (wait), thumb, index and little finger (thank you) |
+| Teach a sign in 3 seconds | Type a phrase, show the sign, use it immediately; one or two hands; no server-side training |
+| ASL starter pack | 10 American Sign Language signs built from recordings of 21 Deaf signers, 87% correct on unseen signers |
+| Listener languages | Three listeners (Family, Attendant, Doctor), each with one of 12 languages and one of 37 Sarvam Bulbul voices |
+| Speak or Type | Speak plays the phrase aloud; Type builds a message from several signs and sends it on WhatsApp, copies it, or reads it out |
+| Desktop widget | Windows bubble that types the signed phrase into the focused application (Ctrl + Shift + Space) |
+| Silent when unsure | Hold-to-confirm, per-sign thresholds, a "resting hands" class and a "No, wrong" cancel |
+| Offline voice fallback | Bundled Sarvam voices for all built-in and ASL phrases, then the device voice |
 
-There are more than 300 sign languages, regional variants of Indian Sign Language, and countless home signs. **A universal sign translator cannot serve this person. A translator that learns this person can.**
+Supported languages: Bengali, Hindi, English, Marathi, Telugu, Tamil, Gujarati, Kannada, Odia, Malayalam, Punjabi (spoken), and Urdu (text only, as Bulbul has no Urdu voice).
 
-## 2. What Ishara does
+## Architecture
 
-| Feature | How |
-|---|---|
-| **Works from minute one** | **Home signs** start with 7 gestures (thumb up yes, thumb down no, fist pain, point up water, two fingers washroom, open palm wait, thumb, index and little finger thank you) |
-| **Learns the person's own signs** | The family types a phrase, the person shows the sign for 3 seconds, and it works immediately. One or two hands. No training wait, no server |
-| **Ready-made ASL** | 10 American Sign Language signs (water, washroom, call my family, thank you, hungry, food, bath, stay, time, bye) built from real data of 21 Deaf signers, 87% correct on signers it never saw |
-| **Speaks in the listener's language** | Three listeners (Family, Attendant, Doctor), each with any of 12 languages (Bengali, Hindi, English, Marathi, Telugu, Tamil, Gujarati, Kannada, Odia, Malayalam, Punjabi, Urdu as text) and any of 37 Sarvam Bulbul voices |
-| **Speak or type** | **Speak** says the phrase aloud. **Type** builds a message from several signs, joins them into proper sentences, and sends it on WhatsApp |
-| **Desktop widget** | A floating bubble on Windows: sign, press **Ctrl + Shift + Space**, and the phrase is typed into whatever app has the cursor |
-| **Never guesses aloud** | A sign must be held about a second; a "resting hands" class and per-sign thresholds stop false alarms; a "No, wrong" button cancels |
-| **Private by design** | The camera, hand tracking and matching all run on the device. Only short phrase text goes to Sarvam for voice and translation |
-
-## 3. How it maps to the judging criteria
-
-| Criterion | Evidence |
-|---|---|
-| **It works** (30) | Live link above. Main flow: Start, hold a sign, hear it in the listener's language. Unit tests run on every deploy and block a broken build |
-| **Use case** (25) | Built for one real person who cannot speak, in a home where three languages meet. Works on the phone they already have, without anyone standing next to them |
-| **Depth of the build** (20) | Own hand-feature maths and nearest-match classifier (section 5), an ASL pack built from 94,000-recording research data with measured accuracy (section 6), 12 languages, a Windows widget that types into any app, an offline voice fallback |
-| **Demo and pitch** (25) | Demo video in the submission. Design and plan in [`docs/PRD.md`](docs/PRD.md) |
-
-## 4. Architecture
-
-```
- Camera (front, 640x480)                        on the device
-   │
-   ▼
- MediaPipe Gesture Recognizer (hands, 21 points each, WebAssembly, GPU or CPU)
-   │
-   ├─► Hand features: 130 numbers (position, size and camera shape removed)
-   │        │
-   │        ▼
-   │   Sign router: selected set (Home signs or ASL)
-   │        ├─ the person's own signs and pack signs (nearest match, per-sign threshold)
-   │        ├─ resting hands? stay silent
-   │        └─ Home signs only: 7 starter gestures from the model
-   │        │
-   │        ▼
-   │   Hold detector: same sign for ~1 s, then a 2 s pause
-   │
-   ▼
- Phrase in the listener's language ──► Speak: Sarvam Bulbul voice (cached), device voice as fallback
-                                    └► Type: message box, WhatsApp, copy, or the desktop widget pastes it
+```mermaid
+flowchart LR
+  CAM[Front camera] --> MP[MediaPipe Gesture Recognizer<br/>21 points per hand]
+  MP --> FEAT[Hand features<br/>130 numbers]
+  FEAT --> ROUTER{Sign router}
+  MP --> STARTER[Starter gestures<br/>Home signs only]
+  STARTER --> ROUTER
+  ROUTER -->|resting hands| SILENT[Stay silent]
+  ROUTER -->|match| HOLD[Hold detector<br/>~1 s hold, 2 s cooldown]
+  HOLD --> PHRASE[Phrase in the<br/>listener's language]
+  PHRASE --> SPEAK[Speak<br/>Sarvam Bulbul]
+  PHRASE --> TYPE[Type<br/>message, WhatsApp, widget]
 ```
 
-| Part | Where | What it does |
-|---|---|---|
-| `src/lib/vision.js` | Browser | Loads MediaPipe from our own site (model and engine are served locally), GPU with CPU fallback |
-| `src/lib/handFeatures.js` | Browser | 21 points per hand, relative to the wrist, scaled by palm size, corrected for camera aspect, depth weighted 0.5; two hands sorted left to right plus their offset. One-hand and two-hand signs can never match each other |
-| `src/lib/personalClassifier.js` | Browser | Mean of the 3 nearest examples per sign; per-sign threshold = 4 × median nearest-neighbour spread (clamped 0.12 to 0.45) × strictness (1, 1.5 or 2.2); resting class; lookalike warning when teaching |
-| `src/lib/holdDetector.js` | Browser | Fires after 900 ms of the same sign, survives 250 ms tracking dropouts, 2 s cooldown, must release before repeating |
-| `src/lib/router.js` | Browser, widget | One routing function shared by the app and the widget |
-| `src/lib/signStore.js` | Browser | Signs per sign language in local storage; import and export as `.json` files; validation of imported packs |
-| `src/lib/translations.js`, `speech.js` | Browser | Translation cache, bundled translations, Sarvam voice with bundled MP3s and a device voice fallback |
-| `api/tts.js`, `api/translate.js` | Local server | Keep the Sarvam key off the device; input limits (300 characters, known languages and voices) |
-| `desktop/` | Electron 45 | Always-on-top bubble that never takes focus, global hotkey, pastes into the focused app, restores the clipboard, only accepts text from our own pages |
-| `scripts/asl_pack.py`, `prune_pack.mjs` | Laptop | Build and prune the ASL pack (section 6) |
-| `.github/workflows/pages.yml` | GitHub Actions | Test, build and deploy to GitHub Pages; actions pinned to commit hashes |
+Everything left of the phrase runs in the browser or the Electron widget. Only phrase text leaves the device, for voice and translation.
 
-**Stack:** React 19.3.1, Vite 8.3.8, MediaPipe Tasks Vision 1.2.2 (gesture recognizer float16 v1, 8.4 MB), Electron 45.2.3, Vitest 5.1.1, Node 24. Sarvam AI: Bulbul v3 voices, `sarvam-translate:v1`.
+| Module | Responsibility |
+|---|---|
+| `src/lib/vision.js` | Loads the MediaPipe Gesture Recognizer (WebAssembly, GPU delegate with CPU fallback) from the app's own origin |
+| `src/lib/handFeatures.js` | Converts hand landmarks into a normalized 130-number feature vector |
+| `src/lib/personalClassifier.js` | Nearest-match classifier, per-sign thresholds, resting class, lookalike detection |
+| `src/lib/holdDetector.js` | Turns a stream of per-frame labels into single, confirmed sign events |
+| `src/lib/router.js` | Shared routing for the web app and the widget |
+| `src/lib/signStore.js` | Sign sets per sign language, persistence, pack import, export and validation |
+| `src/lib/translations.js` | Translation cache, bundled translations, Sarvam translation |
+| `src/lib/speech.js`, `sarvamDirect.js` | Voice: bundled MP3s, local API, direct Sarvam call (hosted build), device voice fallback |
+| `api/tts.js`, `api/translate.js` | Server routes that keep the Sarvam key off the device (local and desktop builds) |
+| `desktop/main.cjs`, `preload.cjs` | Electron widget: focus-less always-on-top window, global hotkey, paste into the focused app |
 
-## 5. Teaching a sign
+**Stack:** React 19.3.1, Vite 8.3.8, MediaPipe Tasks Vision 1.2.2 (gesture recognizer, float16, 8.4 MB), Electron 45.2.3, Vitest 5.1.1, Node.js 24. Voice and translation by Sarvam AI (`bulbul:v3`, `sarvam-translate:v1`).
 
-1. The family picks the sign language set and types the phrase in Bengali, Hindi and/or English.
-2. A 3-second countdown, then 3 seconds of recording: one example every 120 ms, about 24 per take. Record again for variety; save from 8 examples (up to 40 are kept).
-3. Ishara computes the sign's threshold from its own spread and warns if it looks like an existing sign.
-4. "Resting hands" (5 seconds of normal movement) teaches it when to stay silent.
+## How recognition works
 
-Everything is stored on the device only. A sign is about 30 KB of numbers, never images or video.
+### Hand features
 
-## 6. The ASL pack and how we measured it
+For each camera frame, MediaPipe returns 21 landmarks per hand. `extractFeatures` builds a 130-number vector:
 
-- **Source:** the Google Isolated Sign Language Recognition dataset on Kaggle: MediaPipe hand points from about 94,000 recordings of 250 ASL signs by 21 Deaf signers (built on PopSign by Georgia Tech, NTID at RIT and Deaf Professional Arts Network).
-- **Build** (`scripts/asl_pack.py`): download only the index and 20 to 25 recordings per sign from different signers, take frames from the middle of each sign, add mirrored copies for left-handed signing, and convert them with exactly the app's maths. A parity test checks that the Python and JavaScript features are identical (130 of 130 numbers, difference 0).
-- **Test:** train on the first 70% of each sign's recordings, test on the rest (mostly unseen signers), single camera frames, normal strictness.
-- **Lesson:** 30 signs together scored only 51%, because many ASL signs share a hand shape and differ by movement. We added signs one at a time and kept only those that stayed above 70% without hurting the important ones.
+| Indices | Content |
+|---|---|
+| 0 | Hand A present (1 or 0) |
+| 1 to 63 | Hand A: 21 points × (x, y, z) |
+| 64 | Hand B present |
+| 65 to 127 | Hand B: 21 points × (x, y, z) |
+| 128, 129 | Offset from hand A's wrist to hand B's wrist |
 
-| Sign | Phrase | Correct |
+Normalization makes the vector independent of where the hand is and how close it is:
+
+- x is multiplied by the camera aspect ratio, so portrait phones and landscape laptops agree.
+- Every point is taken relative to the wrist and divided by the palm length (wrist to middle knuckle).
+- Depth is weighted by 0.5 because it is the noisiest axis.
+- Two hands are ordered left to right; one-hand and two-hand signs never match each other.
+
+### Classifier
+
+- **Distance:** root mean square difference over the present hands, plus the two-hand offset weighted by 4.
+- **Score per sign:** the mean distance to its 3 nearest examples.
+- **Threshold per sign:** 4 × the median nearest-neighbour distance among its own examples, clamped to 0.12 to 0.45, multiplied by the strictness setting (strict 1, normal 1.5, loose 2.2).
+- **Resting class:** if relaxed, everyday hand movement is the closest match, nothing is said.
+- **Lookalike check:** when a new sign is taught, its distance to existing signs is compared with their spreads, and the family is warned.
+
+### Hold detector
+
+A sign fires only after the same label is seen for 900 ms. Tracking dropouts of up to 250 ms are tolerated, a 2-second cooldown follows, and the hand must change or drop before the same sign fires again.
+
+### Teaching
+
+A 3-second countdown, then 3 seconds of capture at one example every 120 ms (about 24 per take). A sign can be saved from 8 examples; up to 40 are kept (150 for imported packs).
+
+## ASL starter pack
+
+The pack (`public/packs/asl.json`) is built with `scripts/asl_pack.py` from the Google Isolated Sign Language Recognition data: MediaPipe landmarks from about 94,000 recordings of 250 ASL signs by 21 Deaf signers.
+
+1. Download the index and 20 to 25 recordings per sign, each from a different signer where possible.
+2. Take frames from the middle 60% of each recording and add mirrored copies for left-handed signing.
+3. Convert them with the same feature maths as the app. A parity test confirms identical output (130 of 130 values, difference 0).
+4. Evaluate: first 70% of each sign's recordings as examples, the rest (mostly unseen signers) as test frames.
+5. Select signs greedily (`scripts/prune_pack.mjs`): keep a sign only if it reaches 70% without pulling an essential sign below 70%. All 30 candidate signs together scored 51%, because many ASL signs share a hand shape and differ by movement.
+
+| Sign | Phrase | Correct (single frame) |
 |---|---|---|
 | WATER | I need water | 100% |
 | TIME | What time is it? | 100% |
@@ -119,78 +143,169 @@ Everything is stored on the device only. A sign is about 30 KB of numbers, never
 | STAY | Please stay with me | 80% |
 | THANK YOU | Thank you | 77% |
 | BATH | I want to bathe | 73% |
-| **All 10** | | **87% correct, 10% wrong** |
+| **Total** | | **87% correct, 10% wrong, 3% silent** |
 
-In the app a sign must also be held for about a second, which filters out more single-frame mistakes.
+The hold detector filters out a further share of single-frame errors in use.
 
-## 7. Run it
+## API
 
-Requirements: Node 24, npm 11, a webcam, and a Sarvam API key (dashboard.sarvam.ai).
+Local and desktop builds serve two routes (Vite dev middleware; the same handlers run as serverless functions).
+
+### `POST /api/tts`
+
+| Field | Type | Rules |
+|---|---|---|
+| `text` | string | 1 to 300 characters |
+| `language` | string | `bn-IN`, `hi-IN`, `en-IN`, `mr-IN`, `te-IN`, `ta-IN`, `gu-IN`, `kn-IN`, `od-IN`, `ml-IN`, `pa-IN` |
+| `speaker` | string | One of the 37 Bulbul v3 voices (default `rupali`) |
+
+Returns `audio/mpeg`. Errors: `400` invalid input, `405` wrong method, `502` Sarvam failed, `503` no key configured.
+
+### `POST /api/translate`
+
+| Field | Type | Rules |
+|---|---|---|
+| `text` | string | 1 to 300 characters |
+| `source`, `target` | string | The 11 languages above plus `ur-IN` |
+
+Returns `{ "text": "..." }`.
+
+## Data formats and storage
+
+Signs never leave the device. Browser storage keys:
+
+| Key | Content |
+|---|---|
+| `ishara.mysigns.v1` | Sign sets (`home`, `asl`), selected sign language, resting examples, strictness |
+| `ishara.settings.v1` | Language and voice for each listener |
+| `ishara.translations.v1` | Cached translations |
+
+Sign pack file (export, import and bundled packs):
+
+```json
+{
+  "format": "ishara-pack",
+  "version": 1,
+  "signLanguage": "asl",
+  "recordedBy": "family",
+  "signs": [
+    {
+      "id": "asl-water",
+      "en": "I need water",
+      "bn": "আমার জল চাই",
+      "hi": "मुझे पानी चाहिए",
+      "icon": "drop",
+      "examples": [[1, 0.0, 0.0, "... 130 numbers per example"]],
+      "threshold": 0.25
+    }
+  ]
+}
+```
+
+Imported packs are validated: every example must be exactly 130 finite numbers, phrases are capped at 120 characters, and examples are capped per sign.
+
+## Getting started
+
+Requirements: Node.js 24, npm 11, a webcam, and a Sarvam API key from dashboard.sarvam.ai.
 
 ```bash
 npm install
 ```
 
-Put the key in `.env.local` (git-ignored, never committed):
+Create `.env.local` (git-ignored):
 
 ```bash
 SARVAM_API_KEY=your-key-here
 ```
 
-Web app at http://localhost:5173:
+Run the web app at http://localhost:5173:
 
 ```bash
 npm run dev
 ```
 
-Desktop widget (Windows, with the web app running):
+Run the desktop widget (Windows, with the web app running):
 
 ```bash
 npm run desktop
 ```
 
-Tests:
+Run the tests:
 
 ```bash
 npm test
 ```
 
-Rebuild the bundled voices and translations (uses the key from `.env.local`):
+Regenerate the bundled voices and translations:
 
 ```bash
 node --env-file=.env.local scripts/static_assets.mjs
 ```
 
-**Hosted build:** GitHub Pages has no server, so the live site ships pre-made Sarvam voices and translations for every built-in and ASL phrase, and calls Sarvam directly for anything else using a demo key that is rotated after the event. Local and desktop builds keep the key on the local server.
+## Configuration
 
-## 8. Project structure
+| Variable | Used by | Purpose |
+|---|---|---|
+| `SARVAM_API_KEY` | Local server, scripts | Sarvam key, read from `.env.local` |
+| `VITE_BASE` | Build | Base path, `/build-for-one-top-g-s/` on GitHub Pages |
+| `VITE_SARVAM_BROWSER_KEY` | Hosted build | Demo key for direct Sarvam calls where no server exists |
+| `ISHARA_URL` | Desktop widget | Web app address (default `http://localhost:5173`) |
+
+## Deployment
+
+`.github/workflows/pages.yml` runs on every push to `main`: install, run the tests, build with the Pages base path, and publish to GitHub Pages. Every action is pinned to a commit hash. A failing test stops the deploy.
+
+The hosted build has no server, so it ships pre-generated Sarvam voices and translations for every built-in and ASL phrase and calls Sarvam directly for anything else.
+
+## Security and privacy
+
+- Camera frames are processed on the device and never uploaded; signs are stored as numbers, never images.
+- Only phrase text is sent to Sarvam.
+- Local and desktop builds keep the Sarvam key on the server side. The hosted demo uses a restricted demo key that is rotated after the demo period.
+- The widget accepts text only from the app's own origin, caps it at 300 characters, restores the clipboard after pasting, and denies navigation and new windows.
+- The camera permission is granted only to the app's own origin in the widget.
+
+## Testing
+
+| Suite | Covers |
+|---|---|
+| `holdDetector.test.js` | Fires once after a hold, ignores flashes and low confidence, survives dropouts, respects the cooldown |
+| `personalSigns.test.js` | Position, size and camera-aspect invariance, shape separation, one-hand versus two-hand, recognition, resting class, unknown shapes, lookalikes |
+| `compose.test.js` | Sentence joining with language-specific full stops (Latin, Bengali and Hindi, Urdu) |
+
+18 tests, run locally with `npm test` and on every deploy.
+
+## Project structure
 
 ```
-api/            local server routes for voice and translation
+api/            server routes for voice and translation
 desktop/        Electron widget (main process and preload)
-docs/PRD.md     product requirements written at the start of the day
+docs/PRD.md     product requirements written before the build
 public/         hand model, sign packs, bundled voices and translations
 scripts/        ASL pack builder, pack pruner, voice and translation generator
-src/            React app, widget, and the recognition library (src/lib)
+src/            React app, widget UI, and the recognition library in src/lib
 ```
 
-## 9. Limits, honestly
+## Limitations and roadmap
 
-- Signs are matched on hand shape. Signs that differ only by movement or by where they are made can be confused; movement matching is next.
-- Signs recorded by other signers (like the ASL pack) work less well than signs taught by the person who uses Ishara.
-- The desktop widget types into other apps on Windows only.
-- Not a medical device, and not a replacement for interpreters or emergency services. For a medical emergency, call 112.
+Limitations:
 
-## 10. What is next
+- Signs are matched on hand shape per frame. Signs that differ only by movement or location can be confused.
+- Packs recorded by other signers are less accurate than signs taught by the user.
+- Typing into other applications is Windows-only.
+- Ishara is not a medical device and does not replace interpreters or emergency services. In a medical emergency, call 112.
 
-1. Movement-aware signs (short sequences instead of single frames).
-2. Teach a sign from a WhatsApp video of the person.
-3. An Android keyboard so signs type into any app on the phone.
-4. Optional encrypted family sync, so a sign taught on one phone appears on another.
-5. A small server for the hosted build, so no key ever reaches the browser.
+Roadmap:
+
+1. Movement-aware matching over short landmark sequences.
+2. Teaching a sign from a short video.
+3. An Android keyboard that types signs into any app.
+4. Optional end-to-end encrypted sync of signs between family devices.
+5. A small server for the hosted build so no key reaches the browser.
 
 ## Credits
 
 - Hand tracking: MediaPipe Gesture Recognizer (Google, Apache 2.0).
-- Voices and translation: Sarvam AI (Bulbul v3, sarvam-translate).
-- ASL starter pack (`public/packs/asl.json`): derived hand-point features only, from the Google Isolated Sign Language Recognition competition data on Kaggle (kaggle.com/competitions/asl-signs), built on PopSign by Georgia Tech, NTID at RIT and Deaf Professional Arts Network. That data is subject to the competition's rules; contact the team to have the pack removed.
+- Voices and translation: Sarvam AI.
+- ASL starter pack: derived hand-point features only, from the Google Isolated Sign Language Recognition competition data on Kaggle (kaggle.com/competitions/asl-signs), built on PopSign by Georgia Tech, NTID at RIT and Deaf Professional Arts Network. The data is subject to the competition's rules; contact the maintainers to have the pack removed.
+- Built by team Top G's.
