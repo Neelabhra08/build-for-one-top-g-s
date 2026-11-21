@@ -588,7 +588,7 @@ export default function App() {
       )}
 
       <footer className="foot">
-        Hands are tracked on this device with MediaPipe. Voices and translation by Sarvam. For a medical emergency, call 112.
+        Hands are tracked on this device with MediaPipe. Voices and translation by Sarvam.
       </footer>
 
       <nav className="nav" aria-label="Main">
