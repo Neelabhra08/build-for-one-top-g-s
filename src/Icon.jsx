@@ -39,6 +39,7 @@ const PATHS = {
   list: <path d="M7 5h10M7 10h10M7 15h10M3 5h.01M3 10h.01M3 15h.01" />,
   plus: <path d="M10 4v12M4 10h12" />,
   trash: <path d="M4 6h12M8 6V4h4v2M6 6l1 11h6l1-11" />,
+  speaker: <path d="M3 8v4h3l4 3V5L6 8ZM13 7.5a3.5 3.5 0 0 1 0 5M15.5 5a7 7 0 0 1 0 10" />,
 };
 
 export default function Icon({ name, size = 20 }) {

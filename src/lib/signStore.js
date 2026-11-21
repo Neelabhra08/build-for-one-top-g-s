@@ -6,9 +6,9 @@ export const MAX_SIGN_EXAMPLES = 40;
 export const MAX_REST_EXAMPLES = 60;
 
 export const SIGN_LANGUAGES = [
-  { id: 'home', label: 'Home signs', note: 'Gestures the family invented' },
-  { id: 'isl', label: 'ISL', note: 'Indian Sign Language' },
-  { id: 'asl', label: 'ASL', note: 'American Sign Language' },
+  { id: 'home', label: 'Home signs', singular: 'home sign', plural: 'home signs', note: 'Gestures the family invented' },
+  { id: 'isl', label: 'ISL', singular: 'ISL sign', plural: 'ISL signs', note: 'Indian Sign Language' },
+  { id: 'asl', label: 'ASL', singular: 'ASL sign', plural: 'ASL signs', note: 'American Sign Language' },
 ];
 
 export const EMPTY_STORE = {

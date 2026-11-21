@@ -31,7 +31,7 @@ export default function SignsView({
         <p className="panel-sub">{signLanguage.note}. Taught by family, saved only on this device.</p>
 
         {signs.length === 0 && (
-          <p className="empty">No {signLanguage.label} signs yet. Teach one, or import a sign file.</p>
+          <p className="empty">No {signLanguage.plural} yet. Teach one, or import a sign file.</p>
         )}
         <ul className="sign-list">
           {signs.map((sign) => (
@@ -57,7 +57,7 @@ export default function SignsView({
         </ul>
 
         <button type="button" className="btn btn-indigo btn-wide" onClick={onTeach}>
-          <Icon name="plus" /> Teach a new {signLanguage.label} sign
+          <Icon name="plus" /> Teach a new {signLanguage.singular}
         </button>
 
         <div className="row">
@@ -82,26 +82,30 @@ export default function SignsView({
         <p className="panel-sub">Each listener hears the sign in their own language. Voices by Sarvam Bulbul. Urdu is shown and typed, not spoken.</p>
         {settings.listeners.map((l, index) => (
           <div key={l.id} className="voice-row">
-            <span className="voice-who">{l.label}</span>
-            <label className="voice-field">
-              <span>Language</span>
-              <select value={l.lang} onChange={(e) => onListenerChange(index, { lang: e.target.value })}>
-                {LANGUAGES.map((lang) => (
-                  <option key={lang.code} value={lang.code}>
-                    {lang.label} · {lang.name}{lang.voice ? '' : ' (text only)'}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="voice-field">
-              <span>Voice</span>
-              <select value={l.speaker} onChange={(e) => onListenerChange(index, { speaker: e.target.value })}>
-                {VOICES.map((name) => <option key={name} value={name}>{voiceLabel(name)}</option>)}
-              </select>
-            </label>
-            <button type="button" className="btn-small" onClick={() => onPreview(index)}>
-              <Icon name="repeat" size={16} /> Preview
-            </button>
+            <div className="voice-head">
+              <span className="voice-who">{l.label}</span>
+              <button type="button" className="voice-preview" onClick={() => onPreview(index)} aria-label={`Preview the ${l.label} voice`}>
+                <Icon name="speaker" size={16} /> Preview
+              </button>
+            </div>
+            <div className="voice-fields">
+              <label className="voice-field">
+                <span>Language</span>
+                <select value={l.lang} onChange={(e) => onListenerChange(index, { lang: e.target.value })}>
+                  {LANGUAGES.map((lang) => (
+                    <option key={lang.code} value={lang.code}>
+                      {lang.label === lang.name ? lang.name : `${lang.label} · ${lang.name}`}{lang.voice ? '' : ' (text only)'}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="voice-field">
+                <span>Voice</span>
+                <select value={l.speaker} onChange={(e) => onListenerChange(index, { speaker: e.target.value })}>
+                  {VOICES.map((name) => <option key={name} value={name}>{voiceLabel(name)}</option>)}
+                </select>
+              </label>
+            </div>
           </div>
         ))}
       </section>
