@@ -9,6 +9,7 @@ import { speak } from '../lib/speech.js';
 import { createGestureRecognizer, drawHands } from '../lib/vision.js';
 
 const LISTEN_WINDOW_MS = 20000;
+const PENDING_MS = 8000;
 const UI_EVERY_MS = 100;
 const bridge = typeof window !== 'undefined' ? window.ishara : undefined;
 
@@ -34,6 +35,8 @@ export default function WidgetApp() {
   const modeRef = useRef(mode);
   const listenerRef = useRef(LISTENERS[0]);
   const lastUiRef = useRef(0);
+  const pendingRef = useRef(null);
+  const actRef = useRef(null);
 
   const listener = LISTENERS.find((l) => l.id === listenerId) ?? LISTENERS[0];
   useEffect(() => { listenerRef.current = listener; }, [listener]);
@@ -54,11 +57,24 @@ export default function WidgetApp() {
     return () => window.removeEventListener('storage', reload);
   }, []);
 
+  const toggle = useCallback(() => {
+    const pending = pendingRef.current;
+    const fresh = pending && performance.now() - pending.at <= PENDING_MS;
+    console.warn(`[ishara] toggle: listening=${listeningRef.current} pending=${Boolean(fresh)}`);
+    if (!listeningRef.current && fresh) {
+      pendingRef.current = null;
+      setListen(true);
+      actRef.current?.(pending.phrase);
+      return;
+    }
+    setListen(!listeningRef.current);
+  }, [setListen]);
+
   useEffect(() => {
     if (!bridge) return undefined;
     bridge.hotkey().then(setHotkey).catch(() => setHotkey(''));
-    return bridge.onToggle(() => setListen(!listeningRef.current));
-  }, [setListen]);
+    return bridge.onToggle(toggle);
+  }, [toggle]);
 
   const act = useCallback(async (phrase) => {
     const current = listenerRef.current;
@@ -77,6 +93,16 @@ export default function WidgetApp() {
     listenUntilRef.current = performance.now() + LISTEN_WINDOW_MS;
     setLast((prev) => (prev && prev.at === entry.at ? { ...prev, status } : prev));
   }, []);
+  useEffect(() => { actRef.current = act; }, [act]);
+
+  const onFired = useCallback((phrase) => {
+    if (modeRef.current === 'speak' || listeningRef.current) {
+      act(phrase);
+      return;
+    }
+    pendingRef.current = { phrase, at: performance.now() };
+    setLast({ text: textFor(phrase, listenerRef.current), en: phrase.en, status: 'ready', at: Date.now() });
+  }, [act]);
 
   const tick = useCallback(() => {
     const video = videoRef.current;
@@ -91,14 +117,11 @@ export default function WidgetApp() {
       const result = recognizer.recognizeForVideo(video, now);
       drawHands(canvas, result);
       if (listeningRef.current && now > listenUntilRef.current) setListen(false);
-      const active = modeRef.current === 'speak' || listeningRef.current;
-      const { label, score } = active
-        ? routeFrame(result, extractFeatures(result), storeRef.current)
-        : { label: null, score: 0 };
+      const { label, score } = routeFrame(result, extractFeatures(result), storeRef.current);
       const state = detectorRef.current.update(label, score, now);
       if (state.fired) {
         const phrase = resolveLabel(state.fired, storeRef.current);
-        if (phrase) act(phrase);
+        if (phrase) onFired(phrase);
       }
       if (now - lastUiRef.current > UI_EVERY_MS) {
         lastUiRef.current = now;
@@ -106,7 +129,7 @@ export default function WidgetApp() {
       }
     }
     rafRef.current = requestAnimationFrame(tick);
-  }, [act, setListen]);
+  }, [onFired, setListen]);
 
   const start = useCallback(async () => {
     setPhase('loading');
@@ -143,9 +166,10 @@ export default function WidgetApp() {
     ? 'Speaking every sign aloud'
     : listening
       ? 'Listening: sign now, it types where your cursor is'
-      : `Press ${hotkey || 'the hotkey'} or Listen, then sign`;
+      : `Sign, then press ${hotkey || 'Listen'} to type it`;
 
   const lastStatus = {
+    ready: `Press ${hotkey || 'Listen'} to type it`,
     working: '…',
     typed: 'Typed into your app',
     'type-failed': 'Could not type. Is a text box focused?',
@@ -217,7 +241,7 @@ export default function WidgetApp() {
           <button type="button" className={!typing ? 'w-seg-on' : ''} aria-pressed={!typing} onClick={() => setMode('speak')}>Speak</button>
         </div>
         {typing && (
-          <button type="button" className={`w-btn ${listening ? 'w-btn-stop' : ''}`} onClick={() => setListen(!listening)}>
+          <button type="button" className={`w-btn ${listening ? 'w-btn-stop' : ''}`} onClick={toggle}>
             {listening ? 'Stop' : 'Listen'}
           </button>
         )}

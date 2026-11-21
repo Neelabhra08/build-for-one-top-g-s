@@ -121,6 +121,7 @@ app.whenReady().then(() => {
   ));
 
   const registered = globalShortcut.register(HOTKEY, () => {
+    console.log(`Hotkey pressed at ${new Date().toISOString()}`);
     widget?.webContents.send('ishara:toggle');
   });
   hotkeyLabel = registered ? 'Ctrl + Shift + Space' : '';
