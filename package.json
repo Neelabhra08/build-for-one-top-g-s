@@ -9,7 +9,8 @@
     "prebuild": "node scripts/copy-mediapipe-wasm.mjs",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "desktop": "electron desktop/main.cjs"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "1.2.2",
@@ -18,7 +19,9 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "6.3.0",
+    "electron": "45.2.3",
     "vite": "8.3.8",
     "vitest": "5.1.1"
-  }
+  },
+  "main": "desktop/main.cjs"
 }

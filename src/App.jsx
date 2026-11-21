@@ -9,9 +9,10 @@ import {
   textFor,
 } from './lib/phrases.js';
 import { prefetchVoices, speak, stopSpeaking } from './lib/speech.js';
-import { createGestureRecognizer, drawHands, topGesture } from './lib/vision.js';
+import { createGestureRecognizer, drawHands } from './lib/vision.js';
 import { extractFeatures } from './lib/handFeatures.js';
-import { recognizeSign, SENSITIVITY, signThreshold } from './lib/personalClassifier.js';
+import { signThreshold } from './lib/personalClassifier.js';
+import { resolveLabel as resolveFor, routeFrame } from './lib/router.js';
 import { capExamples, loadStore, MAX_REST_EXAMPLES, saveStore } from './lib/signStore.js';
 import Icon from './Icon.jsx';
 import TeachView from './views/TeachView.jsx';
@@ -91,11 +92,7 @@ export default function App() {
     flash(`Saved ${capture.samples.length} resting examples.`);
   }, [capture, flash]);
 
-  const resolveLabel = useCallback((label) => {
-    if (!label) return null;
-    if (label.startsWith('my:')) return storeRef.current.signs.find((s) => `my:${s.id}` === label) ?? null;
-    return PHRASES[GESTURE_PHRASES[label]] ?? null;
-  }, []);
+  const resolveLabel = useCallback((label) => resolveFor(label, storeRef.current), []);
 
   const say = useCallback((phrase) => {
     const current = listenerRef.current;
@@ -142,25 +139,9 @@ export default function App() {
       const feature = extractFeatures(result);
       const capturing = stepCapture(feature, now);
 
-      let label = null;
-      let score = 0;
-      if (viewRef.current === 'use' && !capturing) {
-        const st = storeRef.current;
-        let resting = false;
-        if (feature && (st.signs.length || st.rest.length)) {
-          const sensitivity = SENSITIVITY[st.sensitivity] ?? SENSITIVITY.normal;
-          const match = recognizeSign(feature, st.signs, st.rest, sensitivity, st.restThreshold);
-          if (match.id) {
-            label = `my:${match.id}`;
-            score = 1;
-          } else {
-            resting = match.resting;
-          }
-        }
-        if (!label && !resting && st.everyday) {
-          ({ label, score } = topGesture(result));
-        }
-      }
+      const { label, score } = viewRef.current === 'use' && !capturing
+        ? routeFrame(result, feature, storeRef.current)
+        : { label: null, score: 0 };
 
       const state = detectorRef.current.update(label, score, now);
       if (state.fired) {

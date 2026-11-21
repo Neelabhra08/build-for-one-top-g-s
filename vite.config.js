@@ -1,6 +1,9 @@
+import { fileURLToPath } from 'node:url';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import ttsHandler from './api/tts.js';
+
+const root = fileURLToPath(new URL('.', import.meta.url));
 
 function localApi() {
   return {
@@ -24,5 +27,13 @@ export default defineConfig(({ mode }) => {
   }
   return {
     plugins: [react(), localApi()],
+    build: {
+      rollupOptions: {
+        input: {
+          main: `${root}index.html`,
+          widget: `${root}widget.html`,
+        },
+      },
+    },
   };
 });
