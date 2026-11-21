@@ -1,4 +1,5 @@
 import { asset } from './paths.js';
+import { directTranslate, hasDirectKey } from './sarvamDirect.js';
 
 const KEY = 'ishara.translations.v1';
 const DIRECT_KEYS = { 'bn-IN': 'bn', 'hi-IN': 'hi', 'en-IN': 'en' };
@@ -71,17 +72,22 @@ async function translateOne(text, source, target) {
   const cacheKey = `${target}|${text}`;
   if (cache[cacheKey]) return cache[cacheKey];
   if (inFlight.has(cacheKey)) return inFlight.get(cacheKey);
-  const request = fetch(asset('api/translate'), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text, source, target }),
-  })
-    .then(async (response) => {
+  const lookup = hasDirectKey
+    ? directTranslate(text, source, target)
+    : fetch(asset('api/translate'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, source, target }),
+    }).then(async (response) => {
       if (!response.ok) throw new Error(`Translation failed with ${response.status}`);
-      const data = await response.json();
-      cache[cacheKey] = data.text;
+      return (await response.json()).text;
+    });
+  const request = lookup
+    .then((translated) => {
+      if (!translated) throw new Error('Empty translation');
+      cache[cacheKey] = translated;
       persist();
-      return data.text;
+      return translated;
     })
     .finally(() => inFlight.delete(cacheKey));
   inFlight.set(cacheKey, request);

@@ -1,4 +1,5 @@
 import { asset } from './paths.js';
+import { directVoiceUrl, hasDirectKey } from './sarvamDirect.js';
 
 const TTS_LANGUAGES = new Set([
   'bn-IN', 'en-IN', 'gu-IN', 'hi-IN', 'kn-IN', 'ml-IN', 'mr-IN', 'od-IN', 'pa-IN', 'ta-IN', 'te-IN',
@@ -27,6 +28,11 @@ async function fetchVoice(text, lang, speaker) {
   const manifest = await loadStaticVoices();
   if (manifest[key]) {
     const url = asset(`voices/${manifest[key]}`);
+    audioCache.set(key, url);
+    return url;
+  }
+  if (hasDirectKey) {
+    const url = await directVoiceUrl(text, lang, speaker);
     audioCache.set(key, url);
     return url;
   }
