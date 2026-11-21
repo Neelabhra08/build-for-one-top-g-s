@@ -17,26 +17,6 @@ export const PHRASES = {
   thanks: { icon: 'heart', bn: 'ধন্যবাদ', hi: 'धन्यवाद', en: 'Thank you' },
 };
 
-export const GESTURE_PHRASES = {
-  Pointing_Up: 'water',
-  Victory: 'washroom',
-  Closed_Fist: 'pain',
-  Thumb_Up: 'yes',
-  Thumb_Down: 'no',
-  Open_Palm: 'wait',
-  ILoveYou: 'thanks',
-};
-
-export const GESTURE_LABELS = {
-  Pointing_Up: 'Point up',
-  Victory: 'Two fingers (V)',
-  Closed_Fist: 'Closed fist',
-  Thumb_Up: 'Thumb up',
-  Thumb_Down: 'Thumb down',
-  Open_Palm: 'Open palm',
-  ILoveYou: 'Thumb, index and little finger',
-};
-
 export const QUICK_TILES = ['water', 'washroom', 'pain', 'help'];
 
 export const SIGN_ICONS = ['drop', 'door', 'bolt', 'alert', 'phone', 'pill', 'bed', 'heart', 'check', 'cross', 'hand'];

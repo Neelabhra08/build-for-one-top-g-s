@@ -3,7 +3,7 @@ import Icon from '../Icon.jsx';
 import { HoldDetector } from '../lib/holdDetector.js';
 import { extractFeatures } from '../lib/handFeatures.js';
 import { PHRASES, textFor } from '../lib/phrases.js';
-import { resolveLabel, routeFrame } from '../lib/router.js';
+import { defaultListenerId, resolveLabel, routeFrame } from '../lib/router.js';
 import { allSigns, loadStore } from '../lib/signStore.js';
 import { describeListener, loadSettings } from '../lib/settings.js';
 import { ensureTranslations, reloadTranslations } from '../lib/translations.js';
@@ -20,7 +20,7 @@ export default function WidgetApp() {
   const [errorText, setErrorText] = useState('');
   const [listening, setListening] = useState(false);
   const [mode, setMode] = useState('type');
-  const [listenerId, setListenerId] = useState('family');
+  const [listenerId, setListenerId] = useState(() => defaultListenerId(loadSettings().listeners));
   const [hold, setHold] = useState({ label: null, progress: 0 });
   const [last, setLast] = useState(null);
   const [hotkey, setHotkey] = useState('');
@@ -134,7 +134,7 @@ export default function WidgetApp() {
       drawHands(canvas, result);
       if (listeningRef.current && now > listenUntilRef.current) setListen(false);
       const feature = extractFeatures(result, video.videoWidth / video.videoHeight);
-      const { label, score } = routeFrame(result, feature, storeRef.current);
+      const { label, score } = routeFrame(feature, storeRef.current);
       const state = detectorRef.current.update(label, score, now);
       if (state.fired) {
         const phrase = resolveLabel(state.fired, storeRef.current);

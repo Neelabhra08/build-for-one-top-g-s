@@ -138,14 +138,6 @@ export default function SignsView({
 
         <label className="setting">
           <span>
-            <span className="setting-title">Everyday gestures</span>
-            <span className="setting-sub">Thumbs up, open palm and 5 more, built in.</span>
-          </span>
-          <input type="checkbox" checked={store.everyday} onChange={(e) => onUpdate({ everyday: e.target.checked })} />
-        </label>
-
-        <label className="setting">
-          <span>
             <span className="setting-title">How strict</span>
             <span className="setting-sub">Stricter means fewer mistakes, but signs must be clearer.</span>
           </span>

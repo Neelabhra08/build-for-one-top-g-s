@@ -11,7 +11,7 @@ output English, and lose accuracy on a new signer. Ishara learns the signs of th
 
 | Feature | How |
 |---|---|
-| **Works from minute one** | 7 everyday gestures (thumb up, open palm, fist and more) from MediaPipe's gesture model |
+| **Ready-made ASL signs** | 10 ASL signs built with `scripts/asl_pack.py` from Google's Kaggle ASL landmarks (21 Deaf signers), kept only when measured reliable; bundled once the data licence is confirmed |
 | **Teach your own signs** | Record a sign for 3 seconds, type what it means; one or two hands; home signs, ISL or ASL |
 | **Sign language switch** | Home signs, ISL and ASL sets, each with its own signs; export and import sign files |
 | **Stays silent when unsure** | A sign must be held about a second; a "resting hands" class and per-sign thresholds stop false alarms |
@@ -56,7 +56,7 @@ npm test
 
 ```
 Camera → MediaPipe hand points (on device) → normalized features (position, size and camera shape removed)
-       → your signs (nearest match) → resting hands? stay silent → built-in gestures
+       → signs of the selected sign language (nearest match) → resting hands? stay silent
        → held 1 second → phrase in the listener's language → Sarvam Bulbul voice, or typed into the app
 ```
 

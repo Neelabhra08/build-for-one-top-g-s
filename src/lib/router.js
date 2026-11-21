@@ -1,23 +1,19 @@
-import { GESTURE_PHRASES, PHRASES } from './phrases.js';
 import { recognizeSign, SENSITIVITY } from './personalClassifier.js';
 import { activeSigns, allSigns } from './signStore.js';
-import { topGesture } from './vision.js';
 
-export function routeFrame(result, feature, store) {
+export function routeFrame(feature, store) {
   const signs = activeSigns(store);
-  let resting = false;
-  if (feature && (signs.length || store.rest.length)) {
-    const sensitivity = SENSITIVITY[store.sensitivity] ?? SENSITIVITY.normal;
-    const match = recognizeSign(feature, signs, store.rest, sensitivity, store.restThreshold);
-    if (match.id) return { label: `my:${match.id}`, score: 1 };
-    resting = match.resting;
-  }
-  if (!resting && store.everyday) return topGesture(result);
-  return { label: null, score: 0 };
+  if (!feature || signs.length === 0) return { label: null, score: 0 };
+  const sensitivity = SENSITIVITY[store.sensitivity] ?? SENSITIVITY.normal;
+  const match = recognizeSign(feature, signs, store.rest, sensitivity, store.restThreshold);
+  return match.id ? { label: `my:${match.id}`, score: 1 } : { label: null, score: 0 };
 }
 
 export function resolveLabel(label, store) {
-  if (!label) return null;
-  if (label.startsWith('my:')) return allSigns(store).find((s) => `my:${s.id}` === label) ?? null;
-  return PHRASES[GESTURE_PHRASES[label]] ?? null;
+  if (!label?.startsWith('my:')) return null;
+  return allSigns(store).find((s) => `my:${s.id}` === label) ?? null;
+}
+
+export function defaultListenerId(listeners) {
+  return (listeners.find((l) => l.lang === 'en-IN') ?? listeners[0]).id;
 }

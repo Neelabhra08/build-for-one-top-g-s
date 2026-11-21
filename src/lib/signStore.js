@@ -18,7 +18,6 @@ export const EMPTY_STORE = {
   signLanguage: 'home',
   rest: [],
   restThreshold: 0.12,
-  everyday: true,
   sensitivity: 'normal',
 };
 

@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { HoldDetector } from './lib/holdDetector.js';
-import { GESTURE_LABELS, GESTURE_PHRASES, PHRASES, QUICK_TILES, textFor } from './lib/phrases.js';
+import { PHRASES, QUICK_TILES, textFor } from './lib/phrases.js';
 import { prefetchVoices, speak, stopSpeaking } from './lib/speech.js';
 import { createGestureRecognizer, drawHands } from './lib/vision.js';
 import { extractFeatures } from './lib/handFeatures.js';
 import { signThreshold } from './lib/personalClassifier.js';
-import { resolveLabel as resolveFor, routeFrame } from './lib/router.js';
+import { defaultListenerId, resolveLabel as resolveFor, routeFrame } from './lib/router.js';
 import {
   activeSigns,
   allSigns,
@@ -41,7 +41,7 @@ export default function App() {
   const [errorText, setErrorText] = useState('');
   const [view, setView] = useState('use');
   const [settings, setSettings] = useState(loadSettings);
-  const [listenerId, setListenerId] = useState('family');
+  const [listenerId, setListenerId] = useState(() => defaultListenerId(settings.listeners));
   const [store, setStore] = useState(loadStore);
   const [hold, setHold] = useState({ label: null, progress: 0 });
   const [spoken, setSpoken] = useState(null);
@@ -195,7 +195,7 @@ export default function App() {
       const capturing = stepCapture(feature, now);
 
       const { label, score } = viewRef.current === 'use' && !capturing
-        ? routeFrame(result, feature, storeRef.current)
+        ? routeFrame(feature, storeRef.current)
         : { label: null, score: 0 };
 
       const state = detectorRef.current.update(label, score, now);
@@ -472,13 +472,12 @@ export default function App() {
                   <span className="guide-phrase">{textFor(sign, listener)}</span>
                 </li>
               ))}
-              {store.everyday && Object.entries(GESTURE_PHRASES).map(([gesture, id]) => (
-                <li key={gesture} className={hold.label === gesture ? 'guide-on' : ''}>
-                  <span className="guide-sign">{GESTURE_LABELS[gesture]}</span>
-                  <span className="guide-phrase">{textFor(PHRASES[id], listener)}</span>
-                </li>
-              ))}
             </ul>
+            {signs.length === 0 && (
+              <p className="empty">
+                No {signLanguage.plural} yet. Switch to another sign language above, or teach one in Teach.
+              </p>
+            )}
           </section>
         </>
       )}
