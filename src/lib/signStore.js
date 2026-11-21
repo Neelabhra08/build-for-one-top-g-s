@@ -8,13 +8,12 @@ export const MAX_PACK_EXAMPLES = 150;
 export const MAX_REST_EXAMPLES = 60;
 
 export const SIGN_LANGUAGES = [
-  { id: 'home', label: 'Home signs', singular: 'home sign', plural: 'home signs', note: 'Gestures the family invented' },
-  { id: 'isl', label: 'ISL', singular: 'ISL sign', plural: 'ISL signs', note: 'Indian Sign Language' },
+  { id: 'home', label: 'Home signs', singular: 'home sign', plural: 'home signs', note: 'Gestures the family uses, including any ISL signs' },
   { id: 'asl', label: 'ASL', singular: 'ASL sign', plural: 'ASL signs', note: 'American Sign Language' },
 ];
 
 export const EMPTY_STORE = {
-  sets: { home: [], isl: [], asl: [] },
+  sets: { home: [], asl: [] },
   signLanguage: 'home',
   rest: [],
   restThreshold: 0.12,
@@ -22,7 +21,7 @@ export const EMPTY_STORE = {
 };
 
 function emptyStore() {
-  return { ...EMPTY_STORE, sets: { home: [], isl: [], asl: [] } };
+  return { ...EMPTY_STORE, sets: { home: [], asl: [] } };
 }
 
 export function loadStore() {
@@ -30,7 +29,7 @@ export function loadStore() {
     const raw = localStorage.getItem(KEY);
     if (!raw) return emptyStore();
     const data = JSON.parse(raw);
-    const sets = { home: [], isl: [], asl: [], ...(data.sets ?? {}) };
+    const sets = { home: [], asl: [], ...(data.sets ?? {}) };
     if (Array.isArray(data.signs) && data.signs.length && sets.home.length === 0) sets.home = data.signs;
     const { signs: _legacy, ...rest } = data;
     return {

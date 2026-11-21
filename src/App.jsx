@@ -89,7 +89,7 @@ export default function App() {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all(['isl', 'asl'].map(async (id) => {
+    Promise.all(['asl'].map(async (id) => {
       try {
         const response = await fetch(asset(`packs/${id}.json`));
         if (!response.ok) return null;

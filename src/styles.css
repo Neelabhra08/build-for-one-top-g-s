@@ -205,7 +205,7 @@ body {
 .tile { overflow: hidden; }
 .guide-sign { flex-shrink: 0; }
 
-.seg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: 14px; background: #fff; border: 1px solid var(--line); }
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; padding: 4px; border-radius: 14px; background: #fff; border: 1px solid var(--line); }
 .seg button {
   min-height: 44px; border: 0; border-radius: 10px; background: transparent; color: #374151; font: inherit;
   font-size: 15px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer;

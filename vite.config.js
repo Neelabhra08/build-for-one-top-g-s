@@ -14,7 +14,7 @@ function localPacks() {
     name: 'ishara-local-packs',
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
-        const match = /^\/packs\/(isl|asl)\.json$/.exec(req.url ?? '');
+        const match = /^\/packs\/(asl)\.json$/.exec(req.url ?? '');
         if (!match) return next();
         const local = `${root}packs-local/${match[1]}.json`;
         if (!existsSync(local)) return next();

@@ -15,8 +15,8 @@ output English, and lose accuracy on a new signer. Ishara learns the signs of th
 |---|---|
 | **Ready-made ASL signs** | 10 ASL signs built with `scripts/asl_pack.py` from Google's Kaggle ASL landmarks (21 Deaf signers), kept only when measured reliable; bundled once the data licence is confirmed |
 | **Home signs from minute one** | 7 starter gestures in Home signs (thumb up, open palm, fist and more) from MediaPipe's gesture model, alongside the family's own signs |
-| **Teach your own signs** | Record a sign for 3 seconds, type what it means; one or two hands; home signs, ISL or ASL |
-| **Sign language switch** | Home signs, ISL and ASL sets, each with its own signs; export and import sign files |
+| **Teach your own signs** | Record a sign for 3 seconds, type what it means; one or two hands; home signs (including any ISL the family uses) or ASL |
+| **Sign language switch** | Home signs and ASL sets, each with its own signs; export and import sign files |
 | **Stays silent when unsure** | A sign must be held about a second; a "resting hands" class and per-sign thresholds stop false alarms |
 | **Speaks in the listener's language** | 12 languages per listener (Bengali, Hindi, English, Marathi, Telugu, Tamil, Gujarati, Kannada, Odia, Malayalam, Punjabi; Urdu as text), 37 Sarvam Bulbul voices |
 | **Auto-translation** | Phrases are translated once by Sarvam and cached on the device |
