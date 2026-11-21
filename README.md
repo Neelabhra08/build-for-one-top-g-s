@@ -13,7 +13,7 @@ output English, and lose accuracy on a new signer. Ishara learns the signs of th
 
 | Feature | How |
 |---|---|
-| **Ready-made ASL signs** | 10 ASL signs built with `scripts/asl_pack.py` from Google's Kaggle ASL landmarks (21 Deaf signers), kept only when measured reliable; bundled once the data licence is confirmed |
+| **Ready-made ASL signs** | 10 ASL signs (water, washroom, call my family, thank you, hungry, food, bath, stay, time, bye) built with `scripts/asl_pack.py` from Google's Kaggle ASL landmarks (21 Deaf signers), kept only when measured reliable (87% on unseen signers) |
 | **Home signs from minute one** | 7 starter gestures in Home signs (thumb up, open palm, fist and more) from MediaPipe's gesture model, alongside the family's own signs |
 | **Teach your own signs** | Record a sign for 3 seconds, type what it means; one or two hands; home signs (including any ISL the family uses) or ASL |
 | **Sign language switch** | Home signs and ASL sets, each with its own signs; export and import sign files |
@@ -80,4 +80,4 @@ Camera → MediaPipe hand points (on device) → normalized features (position, 
 
 - Hand tracking: MediaPipe Gesture Recognizer (Google, Apache 2.0).
 - Voices and translation: Sarvam AI (Bulbul v3, sarvam-translate).
-- ASL starter data (when included): Google Isolated Sign Language Recognition on Kaggle, built on PopSign by Georgia Tech, NTID at RIT and Deaf Professional Arts Network.
+- ASL starter pack (`public/packs/asl.json`): derived hand-point features only, from the Google Isolated Sign Language Recognition competition data on Kaggle (kaggle.com/competitions/asl-signs), built on PopSign by Georgia Tech, NTID at RIT and Deaf Professional Arts Network. That data is subject to the competition's rules; contact the team to have the pack removed.
