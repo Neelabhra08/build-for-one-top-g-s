@@ -412,7 +412,6 @@ export default function App() {
               onClick={() => setStore((prev) => ({ ...prev, signLanguage: l.id }))}
             >
               {l.label}
-              <span className="seg-count">{(store.sets[l.id] ?? []).length + (l.id === 'home' ? STARTER_GESTURES.length : 0)}</span>
             </button>
           ))}
         </div>
