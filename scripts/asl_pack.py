@@ -14,6 +14,7 @@ import base64
 import io
 import json
 import math
+import os
 import sys
 import time
 import urllib.error
@@ -80,9 +81,12 @@ def mirror(hands):
 
 
 def kaggle_auth():
+    token = os.environ.get("KAGGLE_API_TOKEN", "").strip()
+    if token:
+        return {"Authorization": f"Bearer {token}"}
     path = Path.home() / ".kaggle" / "kaggle.json"
     if not path.exists():
-        sys.exit(f"Missing {path}. Create a token in Kaggle Settings > API and save it there.")
+        sys.exit(f"Set KAGGLE_API_TOKEN or save a token at {path} (Kaggle Settings > API).")
     creds = json.loads(path.read_text(encoding="utf-8"))
     token = base64.b64encode(f"{creds['username']}:{creds['key']}".encode()).decode()
     return {"Authorization": f"Basic {token}"}

@@ -1,8 +1,10 @@
 import { FEATURE_LENGTH } from './handFeatures.js';
+import { signThreshold } from './personalClassifier.js';
 
 const KEY = 'ishara.mysigns.v1';
 
 export const MAX_SIGN_EXAMPLES = 40;
+export const MAX_PACK_EXAMPLES = 150;
 export const MAX_REST_EXAMPLES = 60;
 
 export const SIGN_LANGUAGES = [
@@ -83,17 +85,20 @@ export function parsePack(data) {
   }
   const signs = data.signs
     .filter((s) => s && typeof s.id === 'string' && Array.isArray(s.examples))
-    .map((s) => ({
-      id: s.id,
-      bn: String(s.bn ?? '').slice(0, 120),
-      hi: String(s.hi ?? '').slice(0, 120),
-      en: String(s.en ?? '').slice(0, 120),
-      icon: typeof s.icon === 'string' ? s.icon : 'hand',
-      examples: capExamples(s.examples.filter(validExample), MAX_SIGN_EXAMPLES),
-      threshold: typeof s.threshold === 'number' ? s.threshold : 0.12,
-      createdAt: s.createdAt ?? null,
-      source: data.recordedBy ?? null,
-    }))
+    .map((s) => {
+      const examples = capExamples(s.examples.filter(validExample), MAX_PACK_EXAMPLES);
+      return {
+        id: s.id,
+        bn: String(s.bn ?? '').slice(0, 120),
+        hi: String(s.hi ?? '').slice(0, 120),
+        en: String(s.en ?? '').slice(0, 120),
+        icon: typeof s.icon === 'string' ? s.icon : 'hand',
+        examples,
+        threshold: typeof s.threshold === 'number' ? s.threshold : signThreshold(examples),
+        createdAt: s.createdAt ?? null,
+        source: data.recordedBy ?? null,
+      };
+    })
     .filter((s) => s.examples.length > 0 && (s.bn || s.hi || s.en));
   return {
     signLanguage: SIGN_LANGUAGES.some((l) => l.id === data.signLanguage) ? data.signLanguage : null,
