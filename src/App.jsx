@@ -191,7 +191,7 @@ export default function App() {
       }
       const result = recognizer.recognizeForVideo(video, now);
       drawHands(canvas, result);
-      const feature = extractFeatures(result);
+      const feature = extractFeatures(result, video.videoWidth / video.videoHeight);
       const capturing = stepCapture(feature, now);
 
       const { label, score } = viewRef.current === 'use' && !capturing

@@ -41,6 +41,14 @@ describe('hand features', () => {
     expect(featureDistance(one, two)).toBe(Infinity);
   });
 
+  it('gives the same features for a portrait phone and a landscape laptop camera', () => {
+    const pixels = OPEN.map(([x, y]) => ({ px: 300 + x * 1000, py: 300 + y * 1000 }));
+    const seen = (width, height) => frame(pixels.map((p) => ({ x: p.px / width, y: p.py / height, z: 0 })));
+    const landscape = extractFeatures(seen(640, 480), 640 / 480);
+    const portrait = extractFeatures(seen(480, 640), 480 / 640);
+    expect(featureDistance(landscape, portrait)).toBeLessThan(0.002);
+  });
+
   it('returns nothing when no hand is visible', () => {
     expect(extractFeatures(frame())).toBeNull();
   });

@@ -10,22 +10,22 @@ export const FEATURE_LENGTH = PAIR_OFFSET + 2;
 
 const round = (value) => Math.round(value * 1000) / 1000;
 
-function normalizeHand(landmarks) {
-  const wrist = landmarks[WRIST];
+function normalizeHand(landmarks, aspect) {
+  const wrist = { x: landmarks[WRIST].x * aspect, y: landmarks[WRIST].y, z: landmarks[WRIST].z ?? 0 };
   const knuckle = landmarks[MIDDLE_KNUCKLE];
-  const scale = Math.hypot(knuckle.x - wrist.x, knuckle.y - wrist.y) || 1e-6;
+  const scale = Math.hypot(knuckle.x * aspect - wrist.x, knuckle.y - wrist.y) || 1e-6;
   const coords = new Array(POINTS * 3);
   for (let i = 0; i < POINTS; i += 1) {
     const p = landmarks[i];
-    coords[i * 3] = (p.x - wrist.x) / scale;
+    coords[i * 3] = (p.x * aspect - wrist.x) / scale;
     coords[i * 3 + 1] = (p.y - wrist.y) / scale;
-    coords[i * 3 + 2] = (((p.z ?? 0) - (wrist.z ?? 0)) / scale) * DEPTH_WEIGHT;
+    coords[i * 3 + 2] = (((p.z ?? 0) * aspect - wrist.z * aspect) / scale) * DEPTH_WEIGHT;
   }
   return { coords, wrist, scale };
 }
 
-export function extractFeatures(result) {
-  const hands = (result?.landmarks ?? []).slice(0, 2).map(normalizeHand);
+export function extractFeatures(result, aspect = 1) {
+  const hands = (result?.landmarks ?? []).slice(0, 2).map((landmarks) => normalizeHand(landmarks, aspect));
   if (hands.length === 0) return null;
   hands.sort((a, b) => a.wrist.x - b.wrist.x);
 

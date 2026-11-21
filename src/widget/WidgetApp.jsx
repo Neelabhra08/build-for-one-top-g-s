@@ -133,7 +133,8 @@ export default function WidgetApp() {
       const result = recognizer.recognizeForVideo(video, now);
       drawHands(canvas, result);
       if (listeningRef.current && now > listenUntilRef.current) setListen(false);
-      const { label, score } = routeFrame(result, extractFeatures(result), storeRef.current);
+      const feature = extractFeatures(result, video.videoWidth / video.videoHeight);
+      const { label, score } = routeFrame(result, feature, storeRef.current);
       const state = detectorRef.current.update(label, score, now);
       if (state.fired) {
         const phrase = resolveLabel(state.fired, storeRef.current);
