@@ -6,11 +6,16 @@ import {
   LISTENERS,
   PHRASES,
   QUICK_TILES,
-  phraseText,
+  textFor,
 } from './lib/phrases.js';
 import { prefetchVoices, speak, stopSpeaking } from './lib/speech.js';
 import { createGestureRecognizer, drawHands, topGesture } from './lib/vision.js';
+import { extractFeatures } from './lib/handFeatures.js';
+import { recognizeSign, SENSITIVITY, signThreshold } from './lib/personalClassifier.js';
+import { capExamples, loadStore, MAX_REST_EXAMPLES, saveStore } from './lib/signStore.js';
 import Icon from './Icon.jsx';
+import TeachView from './views/TeachView.jsx';
+import SignsView from './views/SignsView.jsx';
 
 const SOURCE_LABELS = {
   pending: 'Speaking…',
@@ -19,13 +24,20 @@ const SOURCE_LABELS = {
   none: 'Shown only: no voice available',
 };
 
+const COUNTDOWN_MS = 3000;
+const SAMPLE_EVERY_MS = 120;
+const UI_EVERY_MS = 100;
+
 export default function App() {
   const [phase, setPhase] = useState('start');
   const [errorText, setErrorText] = useState('');
+  const [view, setView] = useState('use');
   const [listenerId, setListenerId] = useState('family');
+  const [store, setStore] = useState(loadStore);
   const [hold, setHold] = useState({ label: null, progress: 0 });
   const [spoken, setSpoken] = useState(null);
   const [notice, setNotice] = useState('');
+  const [capture, setCapture] = useState(null);
 
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -34,27 +46,86 @@ export default function App() {
   const rafRef = useRef(0);
   const streamRef = useRef(null);
   const listenerRef = useRef(LISTENERS[0]);
-  const lastUiUpdateRef = useRef(0);
+  const storeRef = useRef(store);
+  const viewRef = useRef(view);
+  const captureRef = useRef(null);
+  const lastUiRef = useRef(0);
+  const handledCaptures = useRef(new Set());
 
   const listener = LISTENERS.find((l) => l.id === listenerId) ?? LISTENERS[0];
 
+  const flash = useCallback((text) => {
+    setNotice(text);
+    setTimeout(() => setNotice(''), 3000);
+  }, []);
+
+  useEffect(() => {
+    storeRef.current = store;
+    if (!saveStore(store)) flash('Could not save on this phone. Storage may be full or in private mode.');
+  }, [store, flash]);
+
+  useEffect(() => {
+    viewRef.current = view;
+    detectorRef.current.reset();
+    setHold({ label: null, progress: 0 });
+  }, [view]);
+
   useEffect(() => {
     listenerRef.current = listener;
-    if (phase === 'running') {
-      prefetchVoices(Object.keys(PHRASES).map((id) => phraseText(id, listener)), listener.lang);
-    }
-  }, [listener, phase]);
+    if (phase !== 'running') return;
+    const phrases = [...Object.values(PHRASES), ...store.signs];
+    prefetchVoices(phrases.map((p) => textFor(p, listener)).filter(Boolean), listener.lang);
+  }, [listener, phase, store.signs]);
 
-  const say = useCallback((phraseId) => {
+  useEffect(() => {
+    if (capture?.phase !== 'done' || capture.target !== 'rest' || handledCaptures.current.has(capture.id)) return;
+    handledCaptures.current.add(capture.id);
+    if (capture.samples.length === 0) {
+      flash('No hands were seen. Keep your hands in view while recording.');
+      return;
+    }
+    setStore((prev) => {
+      const rest = capExamples([...prev.rest, ...capture.samples], MAX_REST_EXAMPLES);
+      return { ...prev, rest, restThreshold: signThreshold(rest) };
+    });
+    flash(`Saved ${capture.samples.length} resting examples.`);
+  }, [capture, flash]);
+
+  const resolveLabel = useCallback((label) => {
+    if (!label) return null;
+    if (label.startsWith('my:')) return storeRef.current.signs.find((s) => `my:${s.id}` === label) ?? null;
+    return PHRASES[GESTURE_PHRASES[label]] ?? null;
+  }, []);
+
+  const say = useCallback((phrase) => {
     const current = listenerRef.current;
-    const text = phraseText(phraseId, current);
+    const text = textFor(phrase, current);
     if (!text) return;
-    const entry = { phraseId, text, listener: current, source: 'pending', at: Date.now() };
+    const entry = { phrase, text, listener: current, source: 'pending', at: Date.now() };
     setSpoken(entry);
     speak(text, current.lang).then((source) => {
       setSpoken((prev) => (prev && prev.at === entry.at ? { ...prev, source } : prev));
     });
   }, []);
+
+  const stepCapture = (feature, now) => {
+    const cap = captureRef.current;
+    if (!cap) return false;
+    if (now < cap.startAt) {
+      cap.phase = 'countdown';
+    } else if (now <= cap.endAt) {
+      cap.phase = 'recording';
+      if (feature && now - cap.lastAt >= SAMPLE_EVERY_MS) {
+        cap.samples.push(feature);
+        cap.lastAt = now;
+      }
+    } else {
+      captureRef.current = null;
+      setCapture({ id: cap.id, target: cap.target, phase: 'done', samples: cap.samples, count: cap.samples.length });
+      return false;
+    }
+    return true;
+  };
 
   const tick = useCallback(() => {
     const video = videoRef.current;
@@ -68,19 +139,53 @@ export default function App() {
       }
       const result = recognizer.recognizeForVideo(video, now);
       drawHands(canvas, result);
-      const { label, score } = topGesture(result);
+      const feature = extractFeatures(result);
+      const capturing = stepCapture(feature, now);
+
+      let label = null;
+      let score = 0;
+      if (viewRef.current === 'use' && !capturing) {
+        const st = storeRef.current;
+        let resting = false;
+        if (feature && (st.signs.length || st.rest.length)) {
+          const sensitivity = SENSITIVITY[st.sensitivity] ?? SENSITIVITY.normal;
+          const match = recognizeSign(feature, st.signs, st.rest, sensitivity, st.restThreshold);
+          if (match.id) {
+            label = `my:${match.id}`;
+            score = 1;
+          } else {
+            resting = match.resting;
+          }
+        }
+        if (!label && !resting && st.everyday) {
+          ({ label, score } = topGesture(result));
+        }
+      }
+
       const state = detectorRef.current.update(label, score, now);
       if (state.fired) {
-        const phraseId = GESTURE_PHRASES[state.fired];
-        if (phraseId) say(phraseId);
+        const phrase = resolveLabel(state.fired);
+        if (phrase) say(phrase);
       }
-      if (now - lastUiUpdateRef.current > 100) {
-        lastUiUpdateRef.current = now;
+
+      if (now - lastUiRef.current > UI_EVERY_MS) {
+        lastUiRef.current = now;
         setHold({ label: state.label, progress: state.progress });
+        const cap = captureRef.current;
+        if (cap) {
+          const msLeft = cap.phase === 'countdown' ? cap.startAt - now : cap.endAt - now;
+          setCapture({
+            id: cap.id,
+            target: cap.target,
+            phase: cap.phase,
+            secondsLeft: Math.max(1, Math.ceil(msLeft / 1000)),
+            count: cap.samples.length,
+          });
+        }
       }
     }
     rafRef.current = requestAnimationFrame(tick);
-  }, [say]);
+  }, [resolveLabel, say]);
 
   const start = useCallback(async () => {
     setPhase('loading');
@@ -98,6 +203,7 @@ export default function App() {
       }
       detectorRef.current.reset();
       setPhase('running');
+      cancelAnimationFrame(rafRef.current);
       rafRef.current = requestAnimationFrame(tick);
     } catch (error) {
       console.error('Could not start Ishara:', error);
@@ -117,15 +223,35 @@ export default function App() {
     stopSpeaking();
   }, []);
 
+  const startCapture = (target, seconds) => {
+    const now = performance.now();
+    const id = `${target}-${Date.now()}`;
+    captureRef.current = {
+      id,
+      target,
+      phase: 'countdown',
+      startAt: now + COUNTDOWN_MS,
+      endAt: now + COUNTDOWN_MS + seconds * 1000,
+      lastAt: 0,
+      samples: [],
+    };
+    setCapture({ id, target, phase: 'countdown', secondsLeft: 3, count: 0 });
+  };
+
+  const saveSign = (sign) => {
+    setStore((prev) => ({ ...prev, signs: [...prev.signs, sign] }));
+    setView('signs');
+    flash(`Saved. Ishara now knows “${sign.en || sign.bn || sign.hi}”.`);
+  };
+
   const wrong = () => {
     stopSpeaking();
     setSpoken(null);
-    setNotice('Noted. Ishara will not repeat that one.');
-    setTimeout(() => setNotice(''), 2500);
+    flash('Noted. Try the sign again, or re-record it in My signs.');
   };
 
-  const holdPhraseId = hold.label ? GESTURE_PHRASES[hold.label] : null;
-  const holdText = holdPhraseId ? phraseText(holdPhraseId, listener) : '';
+  const holdPhrase = resolveLabel(hold.label);
+  const cameraReady = phase === 'running';
 
   return (
     <main className="app">
@@ -157,10 +283,14 @@ export default function App() {
       <section className="camera" aria-label="Camera">
         <video ref={videoRef} className="mirror" playsInline muted />
         <canvas ref={canvasRef} className="mirror overlay" aria-hidden="true" />
-        {phase === 'running' && (
-          <div className="pill"><span className="dot" />Watching for signs</div>
+        {cameraReady && (
+          <div className="pill">
+            <span className={`dot ${capture && capture.phase === 'recording' ? 'dot-rec' : ''}`} />
+            {capture && capture.phase !== 'done' ? 'Recording examples' : view === 'use' ? 'Watching for signs' : 'Camera on'}
+          </div>
         )}
-        {phase !== 'running' && (
+        {capture && capture.phase === 'countdown' && <div className="countdown" aria-hidden="true">{capture.secondsLeft}</div>}
+        {!cameraReady && (
           <div className="camera-cover">
             {phase === 'start' && (
               <>
@@ -179,70 +309,124 @@ export default function App() {
             )}
           </div>
         )}
-        {phase === 'running' && (
+        {cameraReady && view === 'use' && (
           <div className="meter">
             <div className="meter-row">
               <span>{hold.label ? 'Hold your sign' : 'Show a sign'}</span>
-              <span className="meter-phrase">{holdText}</span>
+              <span className="meter-phrase">{textFor(holdPhrase, listener)}</span>
             </div>
             <div className="meter-track"><div className="meter-fill" style={{ width: `${Math.round(hold.progress * 100)}%` }} /></div>
           </div>
         )}
       </section>
 
-      {spoken && (
-        <section className="spoken" aria-live="assertive">
-          <p className="spoken-to">Spoken to {spoken.listener.label} · {spoken.listener.langLabel}</p>
-          <p className="spoken-text">{spoken.text}</p>
-          {spoken.listener.key !== 'en' && <p className="spoken-en">{PHRASES[spoken.phraseId].en}</p>}
-          <p className="spoken-source">{SOURCE_LABELS[spoken.source]}</p>
-          <div className="spoken-actions">
-            <button type="button" className="btn btn-light" onClick={() => say(spoken.phraseId)}>
-              <Icon name="repeat" /> Say again
-            </button>
-            <button type="button" className="btn btn-wrong" onClick={wrong}>
-              <Icon name="cross" /> No, wrong
-            </button>
-          </div>
-        </section>
-      )}
       {notice && <p className="notice" role="status">{notice}</p>}
 
-      <section aria-labelledby="tiles-title">
-        <h2 id="tiles-title" className="label">Or tap a phrase</h2>
-        <div className="tiles">
-          {QUICK_TILES.map((id) => (
-            <button
-              key={id}
-              type="button"
-              className={`tile ${id === 'help' ? 'tile-help' : ''}`}
-              onClick={() => say(id)}
-            >
-              <span className="tile-icon"><Icon name={PHRASES[id].icon} /></span>
-              <span className="tile-text">
-                <span className="tile-main">{phraseText(id, listener)}</span>
-                <span className="tile-sub">{PHRASES[id].en}</span>
-              </span>
-            </button>
-          ))}
-        </div>
-      </section>
+      {view === 'use' && (
+        <>
+          {spoken && (
+            <section className="spoken" aria-live="assertive">
+              <p className="spoken-to">Spoken to {spoken.listener.label} · {spoken.listener.langLabel}</p>
+              <p className="spoken-text">{spoken.text}</p>
+              {spoken.listener.key !== 'en' && spoken.phrase.en && <p className="spoken-en">{spoken.phrase.en}</p>}
+              <p className="spoken-source">{SOURCE_LABELS[spoken.source]}</p>
+              <div className="spoken-actions">
+                <button type="button" className="btn btn-light" onClick={() => say(spoken.phrase)}>
+                  <Icon name="repeat" /> Say again
+                </button>
+                <button type="button" className="btn btn-wrong" onClick={wrong}>
+                  <Icon name="cross" /> No, wrong
+                </button>
+              </div>
+            </section>
+          )}
 
-      <section aria-labelledby="guide-title" className="guide">
-        <h2 id="guide-title" className="label">Signs Ishara knows now</h2>
-        <ul>
-          {Object.entries(GESTURE_PHRASES).map(([gesture, id]) => (
-            <li key={gesture} className={hold.label === gesture ? 'guide-on' : ''}>
-              <span className="guide-sign">{GESTURE_LABELS[gesture]}</span>
-              <span className="guide-phrase">{phraseText(id, listener)}</span>
-            </li>
-          ))}
-        </ul>
-      </section>
+          <section aria-labelledby="tiles-title">
+            <h2 id="tiles-title" className="label">Or tap a phrase</h2>
+            <div className="tiles">
+              {QUICK_TILES.map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  className={`tile ${id === 'help' ? 'tile-help' : ''}`}
+                  onClick={() => say(PHRASES[id])}
+                >
+                  <span className="tile-icon"><Icon name={PHRASES[id].icon} /></span>
+                  <span className="tile-text">
+                    <span className="tile-main">{textFor(PHRASES[id], listener)}</span>
+                    <span className="tile-sub">{PHRASES[id].en}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section aria-labelledby="guide-title" className="guide">
+            <h2 id="guide-title" className="label">Signs Ishara knows now</h2>
+            <ul>
+              {store.signs.map((sign) => (
+                <li key={sign.id} className={hold.label === `my:${sign.id}` ? 'guide-on' : ''}>
+                  <span className="guide-sign">My sign</span>
+                  <span className="guide-phrase">{textFor(sign, listener)}</span>
+                </li>
+              ))}
+              {store.everyday && Object.entries(GESTURE_PHRASES).map(([gesture, id]) => (
+                <li key={gesture} className={hold.label === gesture ? 'guide-on' : ''}>
+                  <span className="guide-sign">{GESTURE_LABELS[gesture]}</span>
+                  <span className="guide-phrase">{textFor(PHRASES[id], listener)}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        </>
+      )}
+
+      {view === 'teach' && (
+        <TeachView
+          cameraReady={cameraReady}
+          capture={capture}
+          startCapture={startCapture}
+          signs={store.signs}
+          onSave={saveSign}
+          onCancel={() => setView('signs')}
+        />
+      )}
+
+      {view === 'signs' && (
+        <SignsView
+          store={store}
+          listener={listener}
+          cameraReady={cameraReady}
+          capture={capture}
+          startCapture={startCapture}
+          onDelete={(id) => setStore((prev) => ({ ...prev, signs: prev.signs.filter((s) => s.id !== id) }))}
+          onUpdate={(patch) => setStore((prev) => ({ ...prev, ...patch }))}
+          onTeach={() => setView('teach')}
+        />
+      )}
 
       <footer className="foot">
         Hands are tracked on this device with MediaPipe. Voice by Sarvam Bulbul. For a medical emergency, call 112.
       </footer>
+
+      <nav className="nav" aria-label="Main">
+        {[
+          { id: 'use', label: 'Use', icon: 'hand' },
+          { id: 'signs', label: 'My signs', icon: 'list' },
+          { id: 'teach', label: 'Teach', icon: 'plus' },
+        ].map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            className={`nav-item ${view === item.id ? 'nav-on' : ''}`}
+            aria-current={view === item.id ? 'page' : undefined}
+            onClick={() => setView(item.id)}
+          >
+            <Icon name={item.icon} />
+            {item.label}
+          </button>
+        ))}
+      </nav>
     </main>
   );
 }

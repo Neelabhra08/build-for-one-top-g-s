@@ -18,6 +18,27 @@ const PATHS = {
   hand: <path d="M7 10V4a1.5 1.5 0 0 1 3 0v5M10 9V3a1.5 1.5 0 0 1 3 0v6M13 9V5a1.5 1.5 0 0 1 3 0v6c0 4-3 7-6 7s-5-2-6-4l-2-4a1.5 1.5 0 0 1 2.6-1.5L7 11" />,
   heart: <path d="M10 17s-7-4.5-7-9a4 4 0 0 1 7-2.6A4 4 0 0 1 17 8c0 4.5-7 9-7 9Z" />,
   repeat: <path d="M4 10a6 6 0 1 0 2-4.5M4 3v3h3" />,
+  phone: (
+    <>
+      <rect x="6" y="2" width="8" height="16" rx="2" />
+      <path d="M9 15h2" />
+    </>
+  ),
+  pill: (
+    <>
+      <rect x="3" y="7" width="14" height="6" rx="3" transform="rotate(-35 10 10)" />
+      <path d="M8 6.5l4 7" />
+    </>
+  ),
+  bed: (
+    <>
+      <path d="M2 15V5M2 12h16v3M18 12v-2a3 3 0 0 0-3-3H9v5" />
+      <circle cx="5.5" cy="9" r="1.5" />
+    </>
+  ),
+  list: <path d="M7 5h10M7 10h10M7 15h10M3 5h.01M3 10h.01M3 15h.01" />,
+  plus: <path d="M10 4v12M4 10h12" />,
+  trash: <path d="M4 6h12M8 6V4h4v2M6 6l1 11h6l1-11" />,
 };
 
 export default function Icon({ name, size = 20 }) {

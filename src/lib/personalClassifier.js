@@ -45,15 +45,27 @@ export function rankSigns(feature, signs, rest = [], k = 3) {
   return ranked.sort((a, b) => a.distance - b.distance);
 }
 
-export function recognizeSign(feature, signs, rest = [], sensitivity = SENSITIVITY.normal) {
+export function recognizeSign(
+  feature,
+  signs,
+  rest = [],
+  sensitivity = SENSITIVITY.normal,
+  restThreshold = MIN_THRESHOLD,
+) {
   const ranked = rankSigns(feature, signs, rest);
-  const best = ranked[0];
-  if (!best) return { id: null, resting: false, ranked };
-  if (best.id === REST_ID) return { id: null, resting: true, ranked };
-  const sign = signs.find((s) => s.id === best.id);
-  const limit = (sign?.threshold ?? MIN_THRESHOLD) * sensitivity;
-  if (best.distance > limit) return { id: null, resting: false, ranked };
-  return { id: best.id, distance: best.distance, limit, resting: false, ranked };
+  for (const candidate of ranked) {
+    if (candidate.id === REST_ID) {
+      if (candidate.distance <= restThreshold * sensitivity) return { id: null, resting: true, ranked };
+      continue;
+    }
+    const sign = signs.find((s) => s.id === candidate.id);
+    const limit = (sign?.threshold ?? MIN_THRESHOLD) * sensitivity;
+    if (candidate.distance <= limit) {
+      return { id: candidate.id, distance: candidate.distance, limit, resting: false, ranked };
+    }
+    return { id: null, resting: false, ranked };
+  }
+  return { id: null, resting: false, ranked };
 }
 
 export function closestOtherSign(examples, signs, k = 3) {

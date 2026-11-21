@@ -37,7 +37,13 @@ export const GESTURE_LABELS = {
 
 export const QUICK_TILES = ['water', 'washroom', 'pain', 'help'];
 
+export const SIGN_ICONS = ['drop', 'door', 'bolt', 'alert', 'phone', 'pill', 'bed', 'heart', 'check', 'cross', 'hand'];
+
+export function textFor(phrase, listener) {
+  if (!phrase) return '';
+  return phrase[listener.key] || phrase.en || phrase.bn || phrase.hi || '';
+}
+
 export function phraseText(phraseId, listener) {
-  const phrase = PHRASES[phraseId];
-  return phrase ? phrase[listener.key] : '';
+  return textFor(PHRASES[phraseId], listener);
 }
