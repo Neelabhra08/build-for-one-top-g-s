@@ -1,18 +1,36 @@
+import { asset } from './paths.js';
+
 const TTS_LANGUAGES = new Set([
   'bn-IN', 'en-IN', 'gu-IN', 'hi-IN', 'kn-IN', 'ml-IN', 'mr-IN', 'od-IN', 'pa-IN', 'ta-IN', 'te-IN',
 ]);
 
 const audioCache = new Map();
 let currentAudio = null;
+let staticVoices = null;
 
 function cacheKey(text, lang, speaker) {
   return `${lang}|${speaker ?? ''}|${text}`;
 }
 
+function loadStaticVoices() {
+  if (!staticVoices) {
+    staticVoices = fetch(asset('voices/manifest.json'))
+      .then((response) => (response.ok ? response.json() : {}))
+      .catch(() => ({}));
+  }
+  return staticVoices;
+}
+
 async function fetchVoice(text, lang, speaker) {
   const key = cacheKey(text, lang, speaker);
   if (audioCache.has(key)) return audioCache.get(key);
-  const response = await fetch('/api/tts', {
+  const manifest = await loadStaticVoices();
+  if (manifest[key]) {
+    const url = asset(`voices/${manifest[key]}`);
+    audioCache.set(key, url);
+    return url;
+  }
+  const response = await fetch(asset('api/tts'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text, language: lang, speaker }),

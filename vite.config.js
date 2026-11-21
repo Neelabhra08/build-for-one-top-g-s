@@ -49,6 +49,7 @@ export default defineConfig(({ mode }) => {
     process.env.SARVAM_API_KEY = env.SARVAM_API_KEY;
   }
   return {
+    base: process.env.VITE_BASE || '/',
     plugins: [react(), localPacks(), localApi()],
     build: {
       rollupOptions: {

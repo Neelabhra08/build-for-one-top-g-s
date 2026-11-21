@@ -19,7 +19,8 @@ import {
   SIGN_LANGUAGES,
 } from './lib/signStore.js';
 import { describeListener, loadSettings, saveSettings } from './lib/settings.js';
-import { ensureTranslations } from './lib/translations.js';
+import { ensureTranslations, loadStaticTranslations } from './lib/translations.js';
+import { asset } from './lib/paths.js';
 import Icon from './Icon.jsx';
 import TeachView from './views/TeachView.jsx';
 import SignsView from './views/SignsView.jsx';
@@ -90,7 +91,7 @@ export default function App() {
     let cancelled = false;
     Promise.all(['isl', 'asl'].map(async (id) => {
       try {
-        const response = await fetch(`/packs/${id}.json`);
+        const response = await fetch(asset(`packs/${id}.json`));
         if (!response.ok) return null;
         const pack = parsePack(await response.json());
         return { id, signs: pack.signs };
@@ -121,7 +122,7 @@ export default function App() {
     const codes = settings.listeners.map((l) => l.lang).filter((code) => !DIRECT_LANGS.has(code));
     if (codes.length === 0) return;
     const phrases = [...Object.values(PHRASES), ...allSigns(storeRef.current)];
-    ensureTranslations(phrases, codes).then(({ failed }) => {
+    loadStaticTranslations().then(() => ensureTranslations(phrases, codes)).then(({ failed }) => {
       setTranslationsVersion((v) => v + 1);
       if (failed) flash('Some phrases could not be translated. English is shown for those.');
     });

@@ -1,3 +1,5 @@
+import { asset } from './paths.js';
+
 const KEY = 'ishara.translations.v1';
 const DIRECT_KEYS = { 'bn-IN': 'bn', 'hi-IN': 'hi', 'en-IN': 'en' };
 
@@ -25,6 +27,31 @@ export function reloadTranslations() {
   cache = load();
 }
 
+let staticLoad = null;
+
+export function loadStaticTranslations() {
+  if (!staticLoad) {
+    staticLoad = fetch(asset('translations.json'))
+      .then((response) => (response.ok ? response.json() : {}))
+      .then((bundled) => {
+        let added = 0;
+        for (const [key, value] of Object.entries(bundled)) {
+          if (!cache[key] && typeof value === 'string') {
+            cache[key] = value;
+            added += 1;
+          }
+        }
+        if (added) persist();
+        return added;
+      })
+      .catch((error) => {
+        console.warn('Could not load bundled translations:', error.message);
+        return 0;
+      });
+  }
+  return staticLoad;
+}
+
 export function sourceOf(phrase) {
   if (phrase?.en) return { text: phrase.en, code: 'en-IN' };
   if (phrase?.bn) return { text: phrase.bn, code: 'bn-IN' };
@@ -44,7 +71,7 @@ async function translateOne(text, source, target) {
   const cacheKey = `${target}|${text}`;
   if (cache[cacheKey]) return cache[cacheKey];
   if (inFlight.has(cacheKey)) return inFlight.get(cacheKey);
-  const request = fetch('/api/translate', {
+  const request = fetch(asset('api/translate'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text, source, target }),

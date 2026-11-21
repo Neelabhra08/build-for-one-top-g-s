@@ -6,7 +6,7 @@ import { PHRASES, textFor } from '../lib/phrases.js';
 import { defaultListenerId, resolveLabel, routeFrame } from '../lib/router.js';
 import { allSigns, loadStore } from '../lib/signStore.js';
 import { describeListener, loadSettings } from '../lib/settings.js';
-import { ensureTranslations, reloadTranslations } from '../lib/translations.js';
+import { ensureTranslations, loadStaticTranslations, reloadTranslations } from '../lib/translations.js';
 import { speak } from '../lib/speech.js';
 import { createGestureRecognizer, drawHands } from '../lib/vision.js';
 
@@ -50,7 +50,9 @@ export default function WidgetApp() {
   useEffect(() => {
     const codes = settings.listeners.map((l) => l.lang);
     const phrases = [...Object.values(PHRASES), ...allSigns(storeRef.current)];
-    ensureTranslations(phrases, codes).then(() => setTranslationsVersion((v) => v + 1));
+    loadStaticTranslations()
+      .then(() => ensureTranslations(phrases, codes))
+      .then(() => setTranslationsVersion((v) => v + 1));
   }, [langKey, settings.listeners]);
   useEffect(() => { modeRef.current = mode; }, [mode]);
 

@@ -1,7 +1,8 @@
 import { DrawingUtils, FilesetResolver, GestureRecognizer } from '@mediapipe/tasks-vision';
+import { asset } from './paths.js';
 
-const WASM_PATH = '/mediapipe/wasm';
-const MODEL_PATH = '/models/gesture_recognizer.task';
+const WASM_PATH = asset('mediapipe/wasm');
+const MODEL_PATH = asset('models/gesture_recognizer.task');
 
 export async function createGestureRecognizer() {
   const fileset = await FilesetResolver.forVisionTasks(WASM_PATH);
