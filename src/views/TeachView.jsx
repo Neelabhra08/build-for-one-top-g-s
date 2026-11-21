@@ -6,7 +6,7 @@ import { capExamples, MAX_SIGN_EXAMPLES, newSignId } from '../lib/signStore.js';
 import { handCount } from '../lib/handFeatures.js';
 
 const MIN_EXAMPLES = 8;
-const ENGLISH = { key: 'en' };
+const ENGLISH = { key: 'en', lang: 'en-IN' };
 
 export default function TeachView({ cameraReady, capture, startCapture, signs, onSave, onCancel }) {
   const [step, setStep] = useState('phrase');

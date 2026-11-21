@@ -22,7 +22,7 @@ body {
   margin: 0;
   background: var(--ground);
   color: var(--ink);
-  font-family: Inter, 'Noto Sans Bengali', 'Noto Sans Devanagari', system-ui, sans-serif;
+  font-family: Inter, 'Noto Sans Bengali', 'Noto Sans Devanagari', 'Noto Sans Tamil', 'Noto Sans Telugu', 'Noto Sans Kannada', 'Noto Sans Malayalam', 'Noto Sans Gujarati', 'Noto Sans Gurmukhi', 'Noto Sans Oriya', 'Noto Nastaliq Urdu', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -201,6 +201,32 @@ body {
 .setting-sub { margin: 0; font-size: 13px; line-height: 18px; color: var(--muted); }
 .setting-actions { display: flex; gap: 8px; flex-shrink: 0; }
 .setting input[type='checkbox'] { width: 24px; height: 24px; accent-color: var(--indigo); flex-shrink: 0; }
+.tile-main, .tile-sub, .guide-phrase, .spoken-text, .meter-phrase { overflow-wrap: anywhere; min-width: 0; }
+.tile { overflow: hidden; }
+.guide-sign { flex-shrink: 0; }
+
+.seg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: 14px; background: #fff; border: 1px solid var(--line); }
+.seg button {
+  min-height: 44px; border: 0; border-radius: 10px; background: transparent; color: #374151; font: inherit;
+  font-size: 15px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer;
+}
+.seg .seg-on { background: var(--indigo); color: #fff; font-weight: 700; }
+.seg-count { min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px; background: var(--indigo-soft); color: var(--indigo-deep); font-size: 12px; display: inline-flex; align-items: center; justify-content: center; }
+.seg-on .seg-count { background: rgba(255, 255, 255, 0.2); color: #fff; }
+
+.voice-row {
+  display: grid; grid-template-columns: 1fr; gap: 8px; padding: 12px; border-radius: 14px; background: var(--ground);
+}
+.voice-who { font-size: 15px; font-weight: 700; color: var(--ink); }
+.voice-field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.voice-field select {
+  min-height: 44px; padding: 0 10px; border-radius: 12px; border: 1px solid var(--line); background: #fff;
+  font: inherit; font-size: 15px; color: var(--ink);
+}
+@media (min-width: 440px) {
+  .voice-row { grid-template-columns: 90px 1fr 1fr auto; align-items: end; }
+}
+
 .setting select {
   min-height: 44px; padding: 0 10px; border-radius: 12px; border: 1px solid var(--line); background: #fff;
   font: inherit; font-size: 15px;

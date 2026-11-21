@@ -1,3 +1,5 @@
+import { translatedText } from './translations.js';
+
 export const LISTENERS = [
   { id: 'family', label: 'Family', lang: 'bn-IN', key: 'bn', langLabel: 'বাংলা' },
   { id: 'attendant', label: 'Attendant', lang: 'hi-IN', key: 'hi', langLabel: 'हिन्दी' },
@@ -41,7 +43,7 @@ export const SIGN_ICONS = ['drop', 'door', 'bolt', 'alert', 'phone', 'pill', 'be
 
 export function textFor(phrase, listener) {
   if (!phrase) return '';
-  return phrase[listener.key] || phrase.en || phrase.bn || phrase.hi || '';
+  return translatedText(phrase, listener.lang) || phrase.en || phrase.bn || phrase.hi || '';
 }
 
 export function phraseText(phraseId, listener) {

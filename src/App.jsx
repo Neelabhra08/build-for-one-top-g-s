@@ -1,19 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { HoldDetector } from './lib/holdDetector.js';
-import {
-  GESTURE_LABELS,
-  GESTURE_PHRASES,
-  LISTENERS,
-  PHRASES,
-  QUICK_TILES,
-  textFor,
-} from './lib/phrases.js';
+import { GESTURE_LABELS, GESTURE_PHRASES, PHRASES, QUICK_TILES, textFor } from './lib/phrases.js';
 import { prefetchVoices, speak, stopSpeaking } from './lib/speech.js';
 import { createGestureRecognizer, drawHands } from './lib/vision.js';
 import { extractFeatures } from './lib/handFeatures.js';
 import { signThreshold } from './lib/personalClassifier.js';
 import { resolveLabel as resolveFor, routeFrame } from './lib/router.js';
-import { capExamples, loadStore, MAX_REST_EXAMPLES, saveStore } from './lib/signStore.js';
+import {
+  activeSigns,
+  allSigns,
+  capExamples,
+  loadStore,
+  makePack,
+  MAX_REST_EXAMPLES,
+  mergeSigns,
+  parsePack,
+  saveStore,
+  SIGN_LANGUAGES,
+} from './lib/signStore.js';
+import { describeListener, loadSettings, saveSettings } from './lib/settings.js';
+import { ensureTranslations } from './lib/translations.js';
 import Icon from './Icon.jsx';
 import TeachView from './views/TeachView.jsx';
 import SignsView from './views/SignsView.jsx';
@@ -22,23 +28,26 @@ const SOURCE_LABELS = {
   pending: 'Speaking…',
   sarvam: 'Sarvam voice',
   device: 'Phone voice (offline fallback)',
-  none: 'Shown only: no voice available',
+  none: 'Shown only: no voice for this language',
 };
 
 const COUNTDOWN_MS = 3000;
 const SAMPLE_EVERY_MS = 120;
 const UI_EVERY_MS = 100;
+const DIRECT_LANGS = new Set(['bn-IN', 'hi-IN', 'en-IN']);
 
 export default function App() {
   const [phase, setPhase] = useState('start');
   const [errorText, setErrorText] = useState('');
   const [view, setView] = useState('use');
+  const [settings, setSettings] = useState(loadSettings);
   const [listenerId, setListenerId] = useState('family');
   const [store, setStore] = useState(loadStore);
   const [hold, setHold] = useState({ label: null, progress: 0 });
   const [spoken, setSpoken] = useState(null);
   const [notice, setNotice] = useState('');
   const [capture, setCapture] = useState(null);
+  const [, setTranslationsVersion] = useState(0);
 
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -46,24 +55,30 @@ export default function App() {
   const detectorRef = useRef(new HoldDetector());
   const rafRef = useRef(0);
   const streamRef = useRef(null);
-  const listenerRef = useRef(LISTENERS[0]);
+  const listenerRef = useRef(null);
   const storeRef = useRef(store);
   const viewRef = useRef(view);
   const captureRef = useRef(null);
   const lastUiRef = useRef(0);
   const handledCaptures = useRef(new Set());
 
-  const listener = LISTENERS.find((l) => l.id === listenerId) ?? LISTENERS[0];
+  const listeners = settings.listeners.map(describeListener);
+  const listener = listeners.find((l) => l.id === listenerId) ?? listeners[0];
+  listenerRef.current = listener;
+  const signLanguage = SIGN_LANGUAGES.find((l) => l.id === store.signLanguage) ?? SIGN_LANGUAGES[0];
+  const signs = activeSigns(store);
 
   const flash = useCallback((text) => {
     setNotice(text);
-    setTimeout(() => setNotice(''), 3000);
+    setTimeout(() => setNotice(''), 3500);
   }, []);
 
   useEffect(() => {
     storeRef.current = store;
-    if (!saveStore(store)) flash('Could not save on this phone. Storage may be full or in private mode.');
+    if (!saveStore(store)) flash('Could not save on this device. Storage may be full or in private mode.');
   }, [store, flash]);
+
+  useEffect(() => { saveSettings(settings); }, [settings]);
 
   useEffect(() => {
     viewRef.current = view;
@@ -72,11 +87,51 @@ export default function App() {
   }, [view]);
 
   useEffect(() => {
-    listenerRef.current = listener;
+    let cancelled = false;
+    Promise.all(['isl', 'asl'].map(async (id) => {
+      try {
+        const response = await fetch(`/packs/${id}.json`);
+        if (!response.ok) return null;
+        const pack = parsePack(await response.json());
+        return { id, signs: pack.signs };
+      } catch (error) {
+        console.warn(`Could not load the bundled ${id} pack:`, error.message);
+        return null;
+      }
+    })).then((packs) => {
+      if (cancelled) return;
+      setStore((prev) => {
+        const sets = { ...prev.sets };
+        let changed = false;
+        for (const pack of packs) {
+          if (pack && pack.signs.length && sets[pack.id].length === 0) {
+            sets[pack.id] = pack.signs;
+            changed = true;
+          }
+        }
+        return changed ? { ...prev, sets } : prev;
+      });
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  const langKey = settings.listeners.map((l) => l.lang).join(',');
+  const signKey = allSigns(store).map((s) => s.id).join(',');
+  useEffect(() => {
+    const codes = settings.listeners.map((l) => l.lang).filter((code) => !DIRECT_LANGS.has(code));
+    if (codes.length === 0) return;
+    const phrases = [...Object.values(PHRASES), ...allSigns(storeRef.current)];
+    ensureTranslations(phrases, codes).then(({ failed }) => {
+      setTranslationsVersion((v) => v + 1);
+      if (failed) flash('Some phrases could not be translated. English is shown for those.');
+    });
+  }, [langKey, signKey, flash, settings.listeners]);
+
+  useEffect(() => {
     if (phase !== 'running') return;
-    const phrases = [...Object.values(PHRASES), ...store.signs];
-    prefetchVoices(phrases.map((p) => textFor(p, listener)).filter(Boolean), listener.lang);
-  }, [listener, phase, store.signs]);
+    const phrases = [...Object.values(PHRASES), ...signs];
+    prefetchVoices(phrases.map((p) => textFor(p, listener)).filter(Boolean), listener.lang, listener.speaker);
+  }, [listener.lang, listener.speaker, phase, signs.length]);
 
   useEffect(() => {
     if (capture?.phase !== 'done' || capture.target !== 'rest' || handledCaptures.current.has(capture.id)) return;
@@ -94,13 +149,13 @@ export default function App() {
 
   const resolveLabel = useCallback((label) => resolveFor(label, storeRef.current), []);
 
-  const say = useCallback((phrase) => {
-    const current = listenerRef.current;
+  const say = useCallback((phrase, target) => {
+    const current = target ?? listenerRef.current;
     const text = textFor(phrase, current);
     if (!text) return;
     const entry = { phrase, text, listener: current, source: 'pending', at: Date.now() };
     setSpoken(entry);
-    speak(text, current.lang).then((source) => {
+    speak(text, current.lang, current.speaker).then((source) => {
       setSpoken((prev) => (prev && prev.at === entry.at ? { ...prev, source } : prev));
     });
   }, []);
@@ -219,10 +274,58 @@ export default function App() {
     setCapture({ id, target, phase: 'countdown', secondsLeft: 3, count: 0 });
   };
 
+  const updateActiveSet = (update) => {
+    setStore((prev) => ({
+      ...prev,
+      sets: { ...prev.sets, [prev.signLanguage]: update(prev.sets[prev.signLanguage] ?? []) },
+    }));
+  };
+
   const saveSign = (sign) => {
-    setStore((prev) => ({ ...prev, signs: [...prev.signs, sign] }));
+    updateActiveSet((list) => [...list, sign]);
     setView('signs');
-    flash(`Saved. Ishara now knows “${sign.en || sign.bn || sign.hi}”.`);
+    flash(`Saved. Ishara now knows “${sign.en || sign.bn || sign.hi}” in ${signLanguage.label}.`);
+  };
+
+  const exportSigns = () => {
+    const recordedBy = store.signLanguage === 'home' ? 'family' : "Team Top G's";
+    const blob = new Blob([JSON.stringify(makePack(store, recordedBy))], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `ishara-${store.signLanguage}-signs.json`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  };
+
+  const importSigns = async (file) => {
+    try {
+      const pack = parsePack(JSON.parse(await file.text()));
+      const target = pack.signLanguage ?? store.signLanguage;
+      setStore((prev) => ({
+        ...prev,
+        signLanguage: target,
+        sets: { ...prev.sets, [target]: mergeSigns(prev.sets[target] ?? [], pack.signs) },
+      }));
+      const label = SIGN_LANGUAGES.find((l) => l.id === target)?.label ?? target;
+      flash(`Imported ${pack.signs.length} signs into ${label}.`);
+    } catch (error) {
+      console.error('Import failed:', error);
+      flash(`Could not import: ${error.message}`);
+    }
+  };
+
+  const changeListener = (index, patch) => {
+    setSettings((prev) => ({
+      ...prev,
+      listeners: prev.listeners.map((l, i) => (i === index ? { ...l, ...patch } : l)),
+    }));
+  };
+
+  const preview = (index) => {
+    const target = describeListener(settings.listeners[index]);
+    setListenerId(target.id);
+    say(PHRASES.water, target);
   };
 
   const wrong = () => {
@@ -246,16 +349,34 @@ export default function App() {
       <section aria-labelledby="listener-title">
         <h2 id="listener-title" className="label">Who is listening?</h2>
         <div className="chips">
-          {LISTENERS.map((l) => (
+          {listeners.map((l) => (
             <button
               key={l.id}
               type="button"
-              className={`chip ${l.id === listenerId ? 'chip-on' : ''}`}
-              aria-pressed={l.id === listenerId}
+              className={`chip ${l.id === listener.id ? 'chip-on' : ''}`}
+              aria-pressed={l.id === listener.id}
               onClick={() => setListenerId(l.id)}
             >
               <span className="chip-who">{l.label}</span>
               <span className="chip-lang">{l.langLabel}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section aria-labelledby="signlang-title">
+        <h2 id="signlang-title" className="label">Sign language</h2>
+        <div className="seg" role="group" aria-labelledby="signlang-title">
+          {SIGN_LANGUAGES.map((l) => (
+            <button
+              key={l.id}
+              type="button"
+              className={store.signLanguage === l.id ? 'seg-on' : ''}
+              aria-pressed={store.signLanguage === l.id}
+              onClick={() => setStore((prev) => ({ ...prev, signLanguage: l.id }))}
+            >
+              {l.label}
+              <span className="seg-count">{(store.sets[l.id] ?? []).length}</span>
             </button>
           ))}
         </div>
@@ -278,7 +399,7 @@ export default function App() {
                 <button type="button" className="btn btn-primary btn-big" onClick={start}>
                   <Icon name="hand" /> Start Ishara
                 </button>
-                <p className="cover-note">The camera stays on this phone. No video is uploaded.</p>
+                <p className="cover-note">The camera stays on this device. No video is uploaded.</p>
               </>
             )}
             {phase === 'loading' && <p className="cover-note" role="status">Loading the hand model…</p>}
@@ -312,7 +433,7 @@ export default function App() {
               {spoken.listener.key !== 'en' && spoken.phrase.en && <p className="spoken-en">{spoken.phrase.en}</p>}
               <p className="spoken-source">{SOURCE_LABELS[spoken.source]}</p>
               <div className="spoken-actions">
-                <button type="button" className="btn btn-light" onClick={() => say(spoken.phrase)}>
+                <button type="button" className="btn btn-light" onClick={() => say(spoken.phrase, spoken.listener)}>
                   <Icon name="repeat" /> Say again
                 </button>
                 <button type="button" className="btn btn-wrong" onClick={wrong}>
@@ -345,9 +466,9 @@ export default function App() {
           <section aria-labelledby="guide-title" className="guide">
             <h2 id="guide-title" className="label">Signs Ishara knows now</h2>
             <ul>
-              {store.signs.map((sign) => (
+              {signs.map((sign) => (
                 <li key={sign.id} className={hold.label === `my:${sign.id}` ? 'guide-on' : ''}>
-                  <span className="guide-sign">My sign</span>
+                  <span className="guide-sign">{signLanguage.label}</span>
                   <span className="guide-phrase">{textFor(sign, listener)}</span>
                 </li>
               ))}
@@ -367,7 +488,7 @@ export default function App() {
           cameraReady={cameraReady}
           capture={capture}
           startCapture={startCapture}
-          signs={store.signs}
+          signs={signs}
           onSave={saveSign}
           onCancel={() => setView('signs')}
         />
@@ -376,18 +497,25 @@ export default function App() {
       {view === 'signs' && (
         <SignsView
           store={store}
+          signs={signs}
+          signLanguage={signLanguage}
           listener={listener}
+          settings={settings}
           cameraReady={cameraReady}
           capture={capture}
           startCapture={startCapture}
-          onDelete={(id) => setStore((prev) => ({ ...prev, signs: prev.signs.filter((s) => s.id !== id) }))}
+          onDelete={(id) => updateActiveSet((list) => list.filter((s) => s.id !== id))}
           onUpdate={(patch) => setStore((prev) => ({ ...prev, ...patch }))}
           onTeach={() => setView('teach')}
+          onListenerChange={changeListener}
+          onPreview={preview}
+          onExport={exportSigns}
+          onImport={importSigns}
         />
       )}
 
       <footer className="foot">
-        Hands are tracked on this device with MediaPipe. Voice by Sarvam Bulbul. For a medical emergency, call 112.
+        Hands are tracked on this device with MediaPipe. Voices and translation by Sarvam. For a medical emergency, call 112.
       </footer>
 
       <nav className="nav" aria-label="Main">

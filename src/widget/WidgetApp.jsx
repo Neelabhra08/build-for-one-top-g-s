@@ -2,9 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Icon from '../Icon.jsx';
 import { HoldDetector } from '../lib/holdDetector.js';
 import { extractFeatures } from '../lib/handFeatures.js';
-import { LISTENERS, textFor } from '../lib/phrases.js';
+import { PHRASES, textFor } from '../lib/phrases.js';
 import { resolveLabel, routeFrame } from '../lib/router.js';
-import { loadStore } from '../lib/signStore.js';
+import { allSigns, loadStore } from '../lib/signStore.js';
+import { describeListener, loadSettings } from '../lib/settings.js';
+import { ensureTranslations, reloadTranslations } from '../lib/translations.js';
 import { speak } from '../lib/speech.js';
 import { createGestureRecognizer, drawHands } from '../lib/vision.js';
 
@@ -22,6 +24,8 @@ export default function WidgetApp() {
   const [hold, setHold] = useState({ label: null, progress: 0 });
   const [last, setLast] = useState(null);
   const [hotkey, setHotkey] = useState('');
+  const [settings, setSettings] = useState(loadSettings);
+  const [, setTranslationsVersion] = useState(0);
 
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -33,13 +37,21 @@ export default function WidgetApp() {
   const listeningRef = useRef(false);
   const listenUntilRef = useRef(0);
   const modeRef = useRef(mode);
-  const listenerRef = useRef(LISTENERS[0]);
+  const listenerRef = useRef(null);
   const lastUiRef = useRef(0);
   const pendingRef = useRef(null);
   const actRef = useRef(null);
 
-  const listener = LISTENERS.find((l) => l.id === listenerId) ?? LISTENERS[0];
-  useEffect(() => { listenerRef.current = listener; }, [listener]);
+  const listeners = settings.listeners.map(describeListener);
+  const listener = listeners.find((l) => l.id === listenerId) ?? listeners[0];
+  listenerRef.current = listener;
+
+  const langKey = settings.listeners.map((l) => l.lang).join(',');
+  useEffect(() => {
+    const codes = settings.listeners.map((l) => l.lang);
+    const phrases = [...Object.values(PHRASES), ...allSigns(storeRef.current)];
+    ensureTranslations(phrases, codes).then(() => setTranslationsVersion((v) => v + 1));
+  }, [langKey, settings.listeners]);
   useEffect(() => { modeRef.current = mode; }, [mode]);
 
   const setListen = useCallback((on) => {
@@ -51,7 +63,11 @@ export default function WidgetApp() {
 
   useEffect(() => {
     const reload = (event) => {
-      if (!event.key || event.key.startsWith('ishara.')) storeRef.current = loadStore();
+      if (event.key && !event.key.startsWith('ishara.')) return;
+      storeRef.current = loadStore();
+      reloadTranslations();
+      setSettings(loadSettings());
+      setTranslationsVersion((v) => v + 1);
     };
     window.addEventListener('storage', reload);
     return () => window.removeEventListener('storage', reload);
@@ -87,7 +103,7 @@ export default function WidgetApp() {
       const result = await bridge.typeText(`${text} `);
       status = result?.ok ? 'typed' : 'type-failed';
     } else {
-      const source = await speak(text, current.lang);
+      const source = await speak(text, current.lang, current.speaker);
       status = source === 'none' ? 'shown' : 'spoken';
     }
     listenUntilRef.current = performance.now() + LISTEN_WINDOW_MS;
@@ -222,7 +238,7 @@ export default function WidgetApp() {
       )}
 
       <div className="w-row" role="group" aria-label="Listener language">
-        {LISTENERS.map((l) => (
+        {listeners.map((l) => (
           <button
             key={l.id}
             type="button"
