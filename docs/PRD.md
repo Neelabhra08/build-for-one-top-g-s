@@ -8,7 +8,7 @@
 | Team | Top G's |
 | Event | Vibe Coders Hackathon Edition 3, Kolkata, 21 November 2026 |
 | Problem statement | Built for One |
-| Status | Draft 1, written at the start of the build |
+| Status | Plan written at 11:50 am at the start of the build. What was actually built (ASL pack, Speak or Type, 12 languages) is in the README |
 | Last updated | 2026-11-21 |
 
 ---
