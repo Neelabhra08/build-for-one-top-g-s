@@ -3,6 +3,8 @@
 Ishara turns **one person's own hand signs** into speech and text, in the listener's language.
 Built for the "Built for One" statement at Vibe Coders Hackathon Edition 3, Kolkata, 21 November 2026, by team Top G's.
 
+**Live:** https://neelabhra08.github.io/build-for-one-top-g-s/ (open on a phone or laptop, tap Start Ishara, allow the camera). The live site plays bundled Sarvam voices for the built-in phrases; running it locally adds live Sarvam voice and translation for every phrase, and the desktop widget.
+
 There are more than 300 sign languages, regional variants of Indian Sign Language, and countless
 home signs that only one family understands. General sign-to-text models know a fixed word list,
 output English, and lose accuracy on a new signer. Ishara learns the signs of the person who uses it.
