@@ -44,6 +44,30 @@ SIGNS = {
     "wait": {"en": "Please wait", "bn": "একটু অপেক্ষা করো", "hi": "थोड़ा रुकिए", "icon": "hand"},
 }
 
+EXTRA_SIGNS = {
+    "drink": {"en": "I want something to drink", "bn": "আমি কিছু পান করতে চাই", "hi": "मुझे कुछ पीना है", "icon": "drop"},
+    "thirsty": {"en": "I am thirsty", "bn": "আমার তেষ্টা পেয়েছে", "hi": "मुझे प्यास लगी है", "icon": "drop"},
+    "hot": {"en": "I feel hot", "bn": "আমার গরম লাগছে", "hi": "मुझे गर्मी लग रही है", "icon": "alert"},
+    "mom": {"en": "Call my mother", "bn": "মাকে ডাকো", "hi": "माँ को बुलाओ", "icon": "phone"},
+    "dad": {"en": "Call my father", "bn": "বাবাকে ডাকো", "hi": "पापा को बुलाओ", "icon": "phone"},
+    "bed": {"en": "I want to lie down", "bn": "আমি শুতে চাই", "hi": "मुझे लेटना है", "icon": "bed"},
+    "bath": {"en": "I want to bathe", "bn": "আমি স্নান করতে চাই", "hi": "मुझे नहाना है", "icon": "drop"},
+    "food": {"en": "I want food", "bn": "আমাকে খাবার দাও", "hi": "मुझे खाना चाहिए", "icon": "heart"},
+    "milk": {"en": "I want milk", "bn": "আমি দুধ খেতে চাই", "hi": "मुझे दूध चाहिए", "icon": "drop"},
+    "TV": {"en": "Please turn on the TV", "bn": "টিভি চালাও", "hi": "टीवी चालू करो", "icon": "check"},
+    "outside": {"en": "I want to go outside", "bn": "আমি বাইরে যেতে চাই", "hi": "मुझे बाहर जाना है", "icon": "door"},
+    "happy": {"en": "I am happy", "bn": "আমি খুশি", "hi": "मैं खुश हूँ", "icon": "heart"},
+    "sad": {"en": "I am sad", "bn": "আমার মন খারাপ", "hi": "मैं उदास हूँ", "icon": "heart"},
+    "finish": {"en": "I am finished", "bn": "আমার হয়ে গেছে", "hi": "मेरा हो गया", "icon": "check"},
+    "please": {"en": "Please", "bn": "দয়া করে", "hi": "कृपया", "icon": "hand"},
+    "hello": {"en": "Hello", "bn": "নমস্কার", "hi": "नमस्ते", "icon": "hand"},
+    "bye": {"en": "Goodbye", "bn": "আবার দেখা হবে", "hi": "फिर मिलेंगे", "icon": "hand"},
+    "fine": {"en": "I am fine", "bn": "আমি ভালো আছি", "hi": "मैं ठीक हूँ", "icon": "check"},
+    "stay": {"en": "Please stay with me", "bn": "আমার কাছে থাকো", "hi": "मेरे पास रहो", "icon": "heart"},
+    "time": {"en": "What time is it?", "bn": "কটা বাজে?", "hi": "कितने बजे हैं?", "icon": "check"},
+    "shhh": {"en": "Please be quiet", "bn": "একটু চুপ করো", "hi": "कृपया शांत रहिए", "icon": "hand"},
+}
+
 
 def normalize_hand(points, aspect):
     wx, wy, wz = points[0][0] * aspect, points[0][1], points[0][2]
@@ -140,19 +164,27 @@ def pick_middle(frames, count):
     return middle[::step][:count]
 
 
-def build_pack(out_path, per_sign, frames_per_recording):
+def build_pack(out_path, per_sign, frames_per_recording, chosen, workers):
     import pandas as pd
+    from concurrent.futures import ThreadPoolExecutor
 
     headers = kaggle_auth()
-    print("Downloading the index (train.csv)…")
+    print("Downloading the index (train.csv)", flush=True)
     index = pd.read_csv(io.BytesIO(download("train.csv", headers)))
     available = set(index["sign"].unique())
-    missing = [s for s in SIGNS if s not in available]
+    missing = [s for s in chosen if s not in available]
     if missing:
-        print(f"Not in this dataset, skipped: {', '.join(missing)}")
+        print(f"Not in this dataset, skipped: {', '.join(missing)}", flush=True)
+
+    def fetch(path):
+        try:
+            return frames_with_hands(download(path, headers))
+        except Exception as error:
+            print(f"  skipped {path}: {error}", flush=True)
+            return []
 
     signs = []
-    for name, phrase in SIGNS.items():
+    for name, phrase in chosen.items():
         if name not in available:
             continue
         rows = index[index["sign"] == name].drop_duplicates("participant_id").head(per_sign)
@@ -160,21 +192,18 @@ def build_pack(out_path, per_sign, frames_per_recording):
             extra = index[(index["sign"] == name) & ~index["path"].isin(rows["path"])].head(per_sign - len(rows))
             rows = pd.concat([rows, extra])
         examples = []
-        for path in rows["path"]:
-            try:
-                frames = frames_with_hands(download(path, headers))
-            except Exception as error:
-                print(f"  skipped {path}: {error}")
-                continue
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            recordings = list(pool.map(fetch, rows["path"]))
+        for frames in recordings:
             for hands in pick_middle(frames, frames_per_recording):
                 for variant in (hands, mirror(hands)):
                     vector = features(variant, PORTRAIT_ASPECT)
                     if vector:
                         examples.append(vector)
         signers = rows["participant_id"].nunique()
-        print(f"{name}: {len(rows)} recordings from {signers} signers -> {len(examples)} examples")
+        print(f"{name}: {len(rows)} recordings from {signers} signers -> {len(examples)} examples", flush=True)
         if examples:
-            signs.append({"id": f"asl-{name}", **phrase, "examples": examples, "createdAt": None})
+            signs.append({"id": f"asl-{name.lower()}", **phrase, "examples": examples, "createdAt": None})
 
     pack = {
         "format": "ishara-pack",
@@ -195,13 +224,16 @@ def main():
     parser.add_argument("--per-sign", type=int, default=25)
     parser.add_argument("--frames", type=int, default=3)
     parser.add_argument("--features-only")
+    parser.add_argument("--set", choices=["core", "extra", "all"], default="core")
+    parser.add_argument("--workers", type=int, default=8)
     args = parser.parse_args()
     if args.features_only:
         fixture = json.loads(Path(args.features_only).read_text(encoding="utf-8"))
         hands = [[(p["x"], p["y"], p.get("z", 0)) for p in hand] for hand in fixture["landmarks"]]
         print(json.dumps(features(hands, fixture.get("aspect", 1.0))))
         return
-    build_pack(args.out, args.per_sign, args.frames)
+    chosen = {"core": SIGNS, "extra": EXTRA_SIGNS, "all": {**SIGNS, **EXTRA_SIGNS}}[args.set]
+    build_pack(args.out, args.per_sign, args.frames, chosen, args.workers)
 
 
 if __name__ == "__main__":
