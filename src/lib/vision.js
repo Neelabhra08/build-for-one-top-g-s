@@ -21,6 +21,17 @@ export async function createGestureRecognizer() {
   }
 }
 
+export function topGesture(result) {
+  let best = { label: null, score: 0 };
+  for (const hand of result?.gestures ?? []) {
+    const top = hand[0];
+    if (top && top.categoryName !== 'None' && top.score > best.score) {
+      best = { label: top.categoryName, score: top.score };
+    }
+  }
+  return best;
+}
+
 export function drawHands(canvas, result) {
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);

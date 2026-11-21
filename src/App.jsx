@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { HoldDetector } from './lib/holdDetector.js';
-import { PHRASES, QUICK_TILES, textFor } from './lib/phrases.js';
+import { PHRASES, QUICK_TILES, STARTER_GESTURES, textFor } from './lib/phrases.js';
 import { prefetchVoices, speak, stopSpeaking } from './lib/speech.js';
 import { createGestureRecognizer, drawHands } from './lib/vision.js';
 import { extractFeatures } from './lib/handFeatures.js';
@@ -195,7 +195,7 @@ export default function App() {
       const capturing = stepCapture(feature, now);
 
       const { label, score } = viewRef.current === 'use' && !capturing
-        ? routeFrame(feature, storeRef.current)
+        ? routeFrame(result, feature, storeRef.current)
         : { label: null, score: 0 };
 
       const state = detectorRef.current.update(label, score, now);
@@ -376,7 +376,7 @@ export default function App() {
               onClick={() => setStore((prev) => ({ ...prev, signLanguage: l.id }))}
             >
               {l.label}
-              <span className="seg-count">{(store.sets[l.id] ?? []).length}</span>
+              <span className="seg-count">{(store.sets[l.id] ?? []).length + (l.id === 'home' ? STARTER_GESTURES.length : 0)}</span>
             </button>
           ))}
         </div>
@@ -472,8 +472,14 @@ export default function App() {
                   <span className="guide-phrase">{textFor(sign, listener)}</span>
                 </li>
               ))}
+              {store.signLanguage === 'home' && STARTER_GESTURES.map((starter) => (
+                <li key={starter.gesture} className={hold.label === starter.gesture ? 'guide-on' : ''}>
+                  <span className="guide-sign">{starter.label}</span>
+                  <span className="guide-phrase">{textFor(PHRASES[starter.phraseId], listener)}</span>
+                </li>
+              ))}
             </ul>
-            {signs.length === 0 && (
+            {signs.length === 0 && store.signLanguage !== 'home' && (
               <p className="empty">
                 No {signLanguage.plural} yet. Switch to another sign language above, or teach one in Teach.
               </p>

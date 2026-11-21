@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import Icon from '../Icon.jsx';
-import { textFor } from '../lib/phrases.js';
+import { PHRASES, STARTER_GESTURES, textFor } from '../lib/phrases.js';
 import { LANGUAGES, VOICES, voiceLabel } from '../lib/languages.js';
 
 export default function SignsView({
@@ -30,7 +30,7 @@ export default function SignsView({
         <h2 id="signs-title" className="panel-title">My signs · {signLanguage.label}</h2>
         <p className="panel-sub">{signLanguage.note}. Taught by family, saved only on this device.</p>
 
-        {signs.length === 0 && (
+        {signs.length === 0 && signLanguage.id !== 'home' && (
           <p className="empty">No {signLanguage.plural} yet. Teach one, or import a sign file.</p>
         )}
         <ul className="sign-list">
@@ -54,6 +54,18 @@ export default function SignsView({
               )}
             </li>
           ))}
+          {signLanguage.id === 'home' && STARTER_GESTURES.map((starter) => {
+            const phrase = PHRASES[starter.phraseId];
+            return (
+              <li key={starter.gesture} className="sign-row">
+                <span className="tile-icon"><Icon name={phrase.icon} /></span>
+                <span className="sign-text">
+                  <span className="tile-main">{textFor(phrase, listener)}</span>
+                  <span className="tile-sub">{starter.label} · built-in starter gesture</span>
+                </span>
+              </li>
+            );
+          })}
         </ul>
 
         <button type="button" className="btn btn-indigo btn-wide" onClick={onTeach}>
