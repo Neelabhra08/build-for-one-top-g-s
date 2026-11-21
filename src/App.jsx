@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { HoldDetector } from './lib/holdDetector.js';
-import { PHRASES, QUICK_TILES, STARTER_GESTURES, textFor } from './lib/phrases.js';
+import { PHRASES, STARTER_GESTURES, textFor } from './lib/phrases.js';
 import { prefetchVoices, speak, stopSpeaking } from './lib/speech.js';
 import { createGestureRecognizer, drawHands } from './lib/vision.js';
 import { extractFeatures } from './lib/handFeatures.js';
@@ -21,6 +21,7 @@ import {
 import { describeListener, loadSettings, saveSettings } from './lib/settings.js';
 import { ensureTranslations, loadStaticTranslations } from './lib/translations.js';
 import { asset } from './lib/paths.js';
+import { joinSentence } from './lib/compose.js';
 import Icon from './Icon.jsx';
 import TeachView from './views/TeachView.jsx';
 import SignsView from './views/SignsView.jsx';
@@ -48,6 +49,9 @@ export default function App() {
   const [spoken, setSpoken] = useState(null);
   const [notice, setNotice] = useState('');
   const [capture, setCapture] = useState(null);
+  const [output, setOutput] = useState('speak');
+  const [message, setMessage] = useState('');
+  const [lastAdded, setLastAdded] = useState('');
   const [, setTranslationsVersion] = useState(0);
 
   const videoRef = useRef(null);
@@ -62,6 +66,8 @@ export default function App() {
   const captureRef = useRef(null);
   const lastUiRef = useRef(0);
   const handledCaptures = useRef(new Set());
+  const outputRef = useRef('speak');
+  outputRef.current = output;
 
   const listeners = settings.listeners.map(describeListener);
   const listener = listeners.find((l) => l.id === listenerId) ?? listeners[0];
@@ -161,6 +167,18 @@ export default function App() {
     });
   }, []);
 
+  const onSign = useCallback((phrase) => {
+    if (outputRef.current !== 'type') {
+      say(phrase);
+      return;
+    }
+    const current = listenerRef.current;
+    const text = textFor(phrase, current);
+    if (!text) return;
+    setMessage((prev) => joinSentence(prev, text, current.lang));
+    setLastAdded(text);
+  }, [say]);
+
   const stepCapture = (feature, now) => {
     const cap = captureRef.current;
     if (!cap) return false;
@@ -202,7 +220,7 @@ export default function App() {
       const state = detectorRef.current.update(label, score, now);
       if (state.fired) {
         const phrase = resolveLabel(state.fired);
-        if (phrase) say(phrase);
+        if (phrase) onSign(phrase);
       }
 
       if (now - lastUiRef.current > UI_EVERY_MS) {
@@ -222,7 +240,7 @@ export default function App() {
       }
     }
     rafRef.current = requestAnimationFrame(tick);
-  }, [resolveLabel, say]);
+  }, [resolveLabel, onSign]);
 
   const start = useCallback(async () => {
     setPhase('loading');
@@ -329,6 +347,23 @@ export default function App() {
     say(PHRASES.water, target);
   };
 
+  const sendOnWhatsApp = () => {
+    window.open(`https://wa.me/?text=${encodeURIComponent(message.trim())}`, '_blank', 'noopener');
+  };
+
+  const copyMessage = () => {
+    navigator.clipboard.writeText(message.trim())
+      .then(() => flash('Copied. Paste it into any app.'))
+      .catch((error) => {
+        console.error('Copy failed:', error);
+        flash('Could not copy. Select the text and copy it by hand.');
+      });
+  };
+
+  const speakMessage = () => {
+    speak(message.trim(), listener.lang, listener.speaker);
+  };
+
   const wrong = () => {
     stopSpeaking();
     setSpoken(null);
@@ -383,6 +418,26 @@ export default function App() {
         </div>
       </section>
 
+      <section aria-labelledby="output-title">
+        <h2 id="output-title" className="label">Output</h2>
+        <div className="seg" role="group" aria-labelledby="output-title">
+          {[
+            { id: 'speak', label: 'Speak', icon: 'speaker' },
+            { id: 'type', label: 'Type', icon: 'keyboard' },
+          ].map((o) => (
+            <button
+              key={o.id}
+              type="button"
+              className={output === o.id ? 'seg-on' : ''}
+              aria-pressed={output === o.id}
+              onClick={() => setOutput(o.id)}
+            >
+              <Icon name={o.icon} size={18} /> {o.label}
+            </button>
+          ))}
+        </div>
+      </section>
+
       <section className="camera" aria-label="Camera">
         <video ref={videoRef} className="mirror" playsInline muted />
         <canvas ref={canvasRef} className="mirror overlay" aria-hidden="true" />
@@ -427,7 +482,7 @@ export default function App() {
 
       {view === 'use' && (
         <>
-          {spoken && (
+          {output === 'speak' && spoken && (
             <section className="spoken" aria-live="assertive">
               <p className="spoken-to">Spoken to {spoken.listener.label} · {spoken.listener.langLabel}</p>
               <p className="spoken-text">{spoken.text}</p>
@@ -444,25 +499,38 @@ export default function App() {
             </section>
           )}
 
-          <section aria-labelledby="tiles-title">
-            <h2 id="tiles-title" className="label">Or tap a phrase</h2>
-            <div className="tiles">
-              {QUICK_TILES.map((id) => (
-                <button
-                  key={id}
-                  type="button"
-                  className={`tile ${id === 'help' ? 'tile-help' : ''}`}
-                  onClick={() => say(PHRASES[id])}
-                >
-                  <span className="tile-icon"><Icon name={PHRASES[id].icon} /></span>
-                  <span className="tile-text">
-                    <span className="tile-main">{textFor(PHRASES[id], listener)}</span>
-                    <span className="tile-sub">{PHRASES[id].en}</span>
-                  </span>
+          {output === 'type' && (
+            <section className="panel" aria-labelledby="type-title">
+              <div className="type-head">
+                <h2 id="type-title" className="panel-title">Type with signs</h2>
+                <span className="type-lang">{listener.langLabel}</span>
+              </div>
+              <p className="panel-sub">Each sign you hold adds its phrase here. Edit it if you like, then send it.</p>
+              <label className="visually-hidden" htmlFor="message">Message</label>
+              <textarea
+                id="message"
+                className="type-box"
+                rows={4}
+                value={message}
+                placeholder="Show a sign to start typing…"
+                onChange={(e) => setMessage(e.target.value)}
+              />
+              {lastAdded && <p className="type-added" aria-live="polite">Added: {lastAdded}</p>}
+              <div className="type-actions">
+                <button type="button" className="btn btn-indigo" disabled={!message.trim()} onClick={sendOnWhatsApp}>
+                  Send on WhatsApp
                 </button>
-              ))}
-            </div>
-          </section>
+                <button type="button" className="btn btn-ghost" disabled={!message.trim()} onClick={copyMessage}>Copy</button>
+                <button type="button" className="btn btn-ghost" disabled={!message.trim()} onClick={speakMessage}>
+                  <Icon name="speaker" size={18} /> Speak it
+                </button>
+                <button type="button" className="btn btn-ghost" disabled={!message} onClick={() => { setMessage(''); setLastAdded(''); }}>
+                  Clear
+                </button>
+              </div>
+            </section>
+          )}
+
 
           <section aria-labelledby="guide-title" className="guide">
             <h2 id="guide-title" className="label">Signs Ishara knows now</h2>

@@ -40,6 +40,12 @@ const PATHS = {
   plus: <path d="M10 4v12M4 10h12" />,
   trash: <path d="M4 6h12M8 6V4h4v2M6 6l1 11h6l1-11" />,
   speaker: <path d="M3 8v4h3l4 3V5L6 8ZM13 7.5a3.5 3.5 0 0 1 0 5M15.5 5a7 7 0 0 1 0 10" />,
+  keyboard: (
+    <>
+      <rect x="2" y="5" width="16" height="10" rx="2" />
+      <path d="M5 8h.01M8 8h.01M11 8h.01M14 8h.01M6 12h8" />
+    </>
+  ),
 };
 
 export default function Icon({ name, size = 20 }) {

@@ -27,8 +27,6 @@ export const STARTER_GESTURES = [
   { gesture: 'ILoveYou', label: 'Thumb, index and little finger', phraseId: 'thanks' },
 ];
 
-export const QUICK_TILES = ['water', 'washroom', 'pain', 'help'];
-
 export const SIGN_ICONS = ['drop', 'door', 'bolt', 'alert', 'phone', 'pill', 'bed', 'heart', 'check', 'cross', 'hand'];
 
 export function textFor(phrase, listener) {
